@@ -194,7 +194,7 @@ function parseRequestBody(req) {
   });
 }
 
-const server = http.createServer(async (req, res) => {
+const requestHandler = async (req, res) => {
   const urlParts = req.url.split('?');
   const reqPath = urlParts[0];
 
@@ -1192,12 +1192,18 @@ const server = http.createServer(async (req, res) => {
       fs.createReadStream(filePath).pipe(res);
     }
   });
-});
+};
 
-server.listen(PORT, () => {
-  console.log(`\n🍩 Chewy's Dessert Web Server, Admin & POS is LIVE!`);
-  console.log(`👉 Customer Site : http://localhost:${PORT}`);
-  console.log(`🔑 Admin Panel   : http://localhost:${PORT}/admin.html (PIN: ${ADMIN_PIN})`);
-  console.log(`💻 Kasir POS     : http://localhost:${PORT}/pos.html`);
-  console.log(`👑 Owner Portal  : http://localhost:${PORT}/owner.html\n`);
-});
+const server = http.createServer(requestHandler);
+
+if (!process.env.VERCEL) {
+  server.listen(PORT, () => {
+    console.log(`\n🍩 Chewy's Dessert Web Server, Admin & POS is LIVE!`);
+    console.log(`👉 Customer Site : http://localhost:${PORT}`);
+    console.log(`🔑 Admin Panel   : http://localhost:${PORT}/admin.html (PIN: ${ADMIN_PIN})`);
+    console.log(`💻 Kasir POS     : http://localhost:${PORT}/pos.html`);
+    console.log(`👑 Owner Portal  : http://localhost:${PORT}/owner.html\n`);
+  });
+}
+
+export default requestHandler;
