@@ -1,0 +1,2544 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Owner Dashboard · Chewy's Dessert & Coffee</title>
+  <link rel="icon" type="image/png" href="./assets/logo-chewys-orange.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js for High Performance Executive Visualizations -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'bakery-orange': '#FE6134',
+            'bakery-orange-hover': '#e34e23',
+            'bakery-cream': '#F7F6E2',
+            'chocolate-dark': '#2D1406'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@700&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #F8F9FA;
+      color: #2D1406;
+    }
+    @media print {
+      body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+      }
+      #owner-auth-overlay, header button, header a, #inventory-top-actions, .range-btn, 
+      #view-tab-finance, #view-tab-inventory, button, .no-print {
+        display: none !important;
+      }
+      .shadow-xs, .shadow-md, .shadow-2xl, .shadow-lg {
+        box-shadow: none !important;
+        border: 1px solid #e5e7eb !important;
+      }
+      main {
+        padding: 0 !important;
+        max-width: 100% !important;
+      }
+      table {
+        page-break-inside: auto;
+      }
+      tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#F5F6F8]">
+
+  <!-- =========================================================================
+       1. PIN AUTHENTICATION OVERLAY
+       ========================================================================= -->
+  <div id="owner-auth-overlay" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/95 backdrop-blur-md">
+    <div class="w-full max-w-sm bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-orange-200 text-center animate-in fade-in zoom-in-95 duration-200">
+      <div class="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center mx-auto mb-4 border border-orange-200 text-bakery-orange">
+        <i data-lucide="crown" class="w-8 h-8"></i>
+      </div>
+      <h2 class="text-2xl font-extrabold text-[#2D1406]">Portal Pemilik (Owner)</h2>
+      <p class="text-xs text-stone-500 mt-1 mb-6">Masukkan PIN Owner untuk melihat laporan omset & keuntungan resto</p>
+
+      <form id="owner-auth-form" onsubmit="handleOwnerLogin(event)" class="space-y-4">
+        <div>
+          <input type="password" id="owner-pin-input" maxlength="6" inputmode="numeric" placeholder="PIN Owner (1234)" 
+                 class="w-full text-center text-2xl tracking-[0.4em] font-mono py-3 px-4 rounded-2xl border-2 border-orange-200 focus:border-bakery-orange focus:outline-none transition-colors bg-orange-50/50 text-[#2D1406]" required autofocus>
+          <p id="owner-pin-error" class="hidden text-xs text-red-600 font-semibold mt-2">PIN salah! Silakan coba lagi.</p>
+        </div>
+        <button type="submit" class="w-full py-3.5 px-4 rounded-full bg-bakery-orange hover:bg-bakery-orange-hover text-white font-bold text-sm shadow-lg shadow-bakery-orange/30 transition-all hover:scale-[1.02] flex items-center justify-center gap-2">
+          <i data-lucide="unlock" class="w-4 h-4"></i>
+          <span>Buka Dashboard Owner</span>
+        </button>
+      </form>
+      <div class="mt-5 text-[11px] text-stone-400">
+        Default PIN: <strong class="text-stone-600 font-mono">1234</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       2. TOP OWNER NAVIGATION
+       ========================================================================= -->
+  <header class="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <a href="/" class="flex items-center gap-2">
+            <img src="./assets/logo-chewys-orange.png" alt="Chewy's" class="h-7 sm:h-8 object-contain">
+          </a>
+          <span class="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[11px] uppercase tracking-wider px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+            <i data-lucide="crown" class="w-3.5 h-3.5 text-amber-700"></i>
+            <span>DASHBOARD PEMILIK</span>
+          </span>
+        </div>
+
+        <!-- Mobile actions toggle -->
+        <div class="flex md:hidden items-center gap-2">
+          <button onclick="logoutOwner()" title="Logout" class="p-2 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Controls & Quick Navigation -->
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Date Range Filter Tabs -->
+        <div class="flex items-center bg-stone-100 p-1 rounded-xl text-xs font-bold border border-stone-200">
+          <button onclick="setRange('today')" id="range-btn-today" class="range-btn px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 transition-all">Hari Ini</button>
+          <button onclick="setRange('7d')" id="range-btn-7d" class="range-btn px-3 py-1.5 rounded-lg bg-white text-bakery-orange shadow-xs transition-all">7 Hari</button>
+          <button onclick="setRange('30d')" id="range-btn-30d" class="range-btn px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 transition-all">30 Hari</button>
+          <button onclick="setRange('all')" id="range-btn-all" class="range-btn px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 transition-all">Semua</button>
+        </div>
+
+        <!-- Download Excel (.XLSX) Button with Formatting & Borders -->
+        <a href="/api/owner/export-excel" download="laporan-penjualan-chewys.xlsx" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors">
+          <i data-lucide="sheet" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Download Excel (.XLSX)</span>
+          <span class="sm:hidden">Excel</span>
+        </a>
+
+        <!-- Download CSV Button -->
+        <a href="/api/owner/export-csv" download class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold border border-stone-300 transition-colors">
+          <i data-lucide="file-text" class="w-3.5 h-3.5 text-stone-500"></i>
+          <span>CSV</span>
+        </a>
+
+        <!-- Print Laporan PDF Button -->
+        <button onclick="window.print()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold shadow-xs transition-colors" title="Cetak atau Simpan ke PDF">
+          <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Cetak PDF</span>
+        </button>
+
+        <!-- Share Closing WhatsApp -->
+        <button onclick="shareClosingSummaryWA()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 hover:bg-emerald-100 text-xs font-bold shadow-xs transition-colors">
+          <i data-lucide="message-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
+          <span class="hidden sm:inline">Kirim Rekap WA</span>
+          <span class="sm:hidden">WA</span>
+        </button>
+
+        <!-- Quick link to POS / Admin -->
+        <div class="hidden lg:flex items-center gap-1.5 pl-2 border-l border-stone-200">
+          <a href="/pos.html" target="_blank" class="p-2 rounded-xl text-stone-600 hover:text-bakery-orange hover:bg-orange-50 transition-colors" title="Buka Kasir POS">
+            <i data-lucide="calculator" class="w-4 h-4"></i>
+          </a>
+          <a href="/admin.html" target="_blank" class="p-2 rounded-xl text-stone-600 hover:text-bakery-orange hover:bg-orange-50 transition-colors" title="Panel Stok & Menu">
+            <i data-lucide="package" class="w-4 h-4"></i>
+          </a>
+          <button onclick="logoutOwner()" title="Logout" class="p-2 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       3. MAIN EXECUTIVE CONTENT
+       ========================================================================= -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1 w-full space-y-6">
+
+    <!-- PRIMARY OWNER NAVIGATION TABS -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-stone-200">
+      <div class="flex items-center gap-2">
+        <button onclick="switchOwnerView('finance')" id="view-tab-finance" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-[#2D1406] text-white shadow-xs transition-all">
+          <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+          <span>Laporan Keuangan & Omset</span>
+        </button>
+        <button onclick="switchOwnerView('inventory')" id="view-tab-inventory" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all">
+          <i data-lucide="wheat" class="w-4 h-4 text-bakery-orange"></i>
+          <span>Stok Bahan Baku & Resep (BOM)</span>
+          <span id="tab-inventory-alert-badge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white animate-pulse">0 Alert</span>
+        </button>
+      </div>
+
+      <div id="inventory-top-actions" class="hidden flex flex-wrap items-center gap-2">
+        <button onclick="openWasteModal()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-bold shadow-xs transition-colors">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-600"></i>
+          <span>+ Catat Bahan Rusak (Waste)</span>
+        </button>
+        <button onclick="openIngredientModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-xs font-bold shadow-xs transition-colors">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+          <span>Tambah Bahan Baku</span>
+        </button>
+        <button onclick="exportIngredientsCSV()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold border border-stone-300 transition-colors" title="Download data stok ke file CSV">
+          <i data-lucide="download" class="w-3.5 h-3.5 text-stone-500"></i>
+          <span>Export Stok (CSV)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- VIEW 1: FINANCE & SALES ANALYTICS -->
+    <div id="owner-view-finance" class="space-y-6">
+
+      <!-- Section 1: Executive KPI Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      
+      <!-- KPI 1: Total Omset (Gross Revenue) -->
+      <div class="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between text-stone-400 mb-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-stone-500">Total Omset Penjualan</span>
+          <div class="w-9 h-9 rounded-2xl bg-orange-100 text-bakery-orange flex items-center justify-center">
+            <i data-lucide="dollar-sign" class="w-5 h-5"></i>
+          </div>
+        </div>
+        <div>
+          <div id="kpi-revenue" class="text-2xl sm:text-3xl font-black text-[#2D1406] font-mono">Rp 0</div>
+          <p id="kpi-aov" class="text-[11px] text-stone-500 mt-1">Rata-rata: Rp 0 / transaksi</p>
+        </div>
+      </div>
+
+      <!-- KPI 2: Estimasi Laba Bersih (Net Profit) -->
+      <div class="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between text-stone-400 mb-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-stone-500">Estimasi Laba Bersih</span>
+          <div class="w-9 h-9 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <i data-lucide="trending-up" class="w-5 h-5"></i>
+          </div>
+        </div>
+        <div>
+          <div id="kpi-profit" class="text-2xl sm:text-3xl font-black text-emerald-700 font-mono">Rp 0</div>
+          <div class="flex items-center gap-1.5 mt-1">
+            <span id="kpi-margin-badge" class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Margin: 0%</span>
+            <span class="text-[11px] text-stone-400">setelah HPP</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI 3: Total Modal Bahan (HPP) -->
+      <div class="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between text-stone-400 mb-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-stone-500">Total Modal Bahan (HPP)</span>
+          <div class="w-9 h-9 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center">
+            <i data-lucide="pie-chart" class="w-5 h-5"></i>
+          </div>
+        </div>
+        <div>
+          <div id="kpi-cost" class="text-2xl sm:text-3xl font-black text-stone-700 font-mono">Rp 0</div>
+          <p class="text-[11px] text-stone-500 mt-1">Biaya bahan baku dessert & cups</p>
+        </div>
+      </div>
+
+      <!-- KPI 4: Total Transaksi & Porsi Terjual -->
+      <div class="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between text-stone-400 mb-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-stone-500">Total Pesanan Selesai</span>
+          <div class="w-9 h-9 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center">
+            <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+          </div>
+        </div>
+        <div>
+          <div id="kpi-orders" class="text-2xl sm:text-3xl font-black text-[#2D1406] font-mono">0 Struk</div>
+          <p id="kpi-items-sold" class="text-[11px] text-stone-500 mt-1">0 porsi dessert terjual</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Section 2: Primary Visual Charts (Trend Omset & Jam Sibuk Restoran) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- Chart 1: Tren Omset & Profit Harian (2 Cols) -->
+      <div class="lg:col-span-2 bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406]">Tren Omset & Laba Bersih</h3>
+            <p class="text-xs text-stone-500">Pergerakan pendapatan dan keuntungan harian</p>
+          </div>
+          <div class="flex items-center gap-3 text-xs font-bold">
+            <span class="flex items-center gap-1.5 text-bakery-orange"><span class="w-3 h-3 rounded-full bg-bakery-orange inline-block"></span> Omset</span>
+            <span class="flex items-center gap-1.5 text-emerald-600"><span class="w-3 h-3 rounded-full bg-emerald-600 inline-block"></span> Laba</span>
+          </div>
+        </div>
+        <div class="h-64 sm:h-72 w-full relative">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 2: Jam Sibuk Restoran (Peak Hours) (1 Col) -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs flex flex-col justify-between">
+        <div class="mb-4">
+          <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+            <i data-lucide="clock" class="w-4 h-4 text-orange-500"></i>
+            <span>Jam Sibuk Resto (Peak Hours)</span>
+          </h3>
+          <p class="text-xs text-stone-500">Jam-jam paling ramai pelanggan (08:00 - 22:00)</p>
+        </div>
+        <div class="h-64 sm:h-72 w-full relative">
+          <canvas id="peakHoursChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Section 3: Category Breakdown & Payment Methods -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      
+      <!-- Chart 3: Kontribusi Penjualan per Kategori (Donut) -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs flex flex-col justify-between">
+        <div class="mb-3">
+          <h3 class="text-sm font-extrabold text-[#2D1406]">Kontribusi per Kategori Menu</h3>
+          <p class="text-xs text-stone-500">Bomboloni vs Brownies vs Minuman</p>
+        </div>
+        <div class="h-56 relative flex items-center justify-center">
+          <canvas id="categoryChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Metode Pembayaran Breakdown -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs flex flex-col justify-between">
+        <div class="mb-3">
+          <h3 class="text-sm font-extrabold text-[#2D1406]">Metode Pembayaran Kasir</h3>
+          <p class="text-xs text-stone-500">Pilihan pembayaran pelanggan</p>
+        </div>
+        <div id="payment-breakdown-list" class="space-y-3 my-auto text-xs">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+
+      <!-- Quick Owner Tips & Insights -->
+      <div class="bg-gradient-to-br from-[#2D1406] to-[#45220c] rounded-3xl p-5 sm:p-6 text-white shadow-md flex flex-col justify-between">
+        <div>
+          <div class="flex items-center gap-2 text-amber-400 font-bold text-xs mb-2">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+            <span>INSIGHT BISNIS CHEWY'S</span>
+          </div>
+          <h4 class="text-base font-extrabold leading-snug">Evaluasi Performa Dapur</h4>
+          <p class="text-xs text-stone-300 mt-2 leading-relaxed">
+            Periksa grafik jam sibuk untuk menentukan jam operasional penggorengan bomboloni panas dan penambahan staf barista saat rush hour.
+          </p>
+        </div>
+        <div class="pt-4 border-t border-white/10 flex items-center justify-between text-xs">
+          <span class="text-stone-300 font-medium">Laporan Akuntansi</span>
+          <a href="/api/owner/export-csv" class="font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1">
+            <span>Download CSV</span>
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Section 4: Profitability by Menu Item (Analisis Menu Paling Cuan) -->
+    <div class="bg-white rounded-3xl border border-stone-200/80 shadow-xs overflow-hidden">
+      <div class="p-5 sm:p-6 border-b border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+            <i data-lucide="badge-percent" class="w-5 h-5 text-emerald-600"></i>
+            <span>Analisis Profitabilitas Menu (Paling Cuan)</span>
+          </h3>
+          <p class="text-xs text-stone-500">Perbandingan omset kotor vs modal bahan (HPP) dan laba bersih per produk</p>
+        </div>
+        <div class="text-xs text-stone-500 bg-stone-100 px-3 py-1.5 rounded-xl font-medium">
+          Klik tombol <strong>"Ubah HPP"</strong> untuk menyesuaikan modal bahan
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-stone-50 text-stone-500 uppercase tracking-wider text-[10px] font-bold border-b border-stone-200">
+            <tr>
+              <th class="py-3 px-4 sm:px-6">Nama Menu</th>
+              <th class="py-3 px-4 text-center">Terjual</th>
+              <th class="py-3 px-4 text-right">Harga Jual</th>
+              <th class="py-3 px-4 text-right">Modal Bahan (HPP)</th>
+              <th class="py-3 px-4 text-right">Total Omset</th>
+              <th class="py-3 px-4 text-right font-bold text-emerald-700">Laba Bersih</th>
+              <th class="py-3 px-4 text-center">Margin %</th>
+              <th class="py-3 px-4 text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="profitability-table-body" class="divide-y divide-stone-100">
+            <!-- Injected via JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Section 5: Recent Transactions Table -->
+    <div class="bg-white rounded-3xl border border-stone-200/80 shadow-xs overflow-hidden">
+      <div class="p-5 sm:p-6 border-b border-stone-100 flex items-center justify-between">
+        <div>
+          <h3 class="text-base font-extrabold text-[#2D1406]">Riwayat Transaksi Terakhir</h3>
+          <p class="text-xs text-stone-500">20 Transaksi pesanan kasir terakhir</p>
+        </div>
+        <a href="/api/owner/export-csv" class="text-xs font-bold text-bakery-orange hover:text-bakery-orange-hover flex items-center gap-1">
+          <span>Ekspor Semua ke Excel</span>
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </a>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-stone-50 text-stone-500 uppercase tracking-wider text-[10px] font-bold border-b border-stone-200">
+            <tr>
+              <th class="py-3 px-4 sm:px-6">No. Struk</th>
+              <th class="py-3 px-4">Waktu</th>
+              <th class="py-3 px-4">Tipe & Meja</th>
+              <th class="py-3 px-4">Menu Dipesan</th>
+              <th class="py-3 px-4">Metode</th>
+              <th class="py-3 px-4 text-right">Total Bayar</th>
+            </tr>
+          </thead>
+          <tbody id="recent-orders-table-body" class="divide-y divide-stone-100">
+            <!-- Injected via JS -->
+          </tbody>
+        </table>
+      </div>
+      </div>
+    </div>
+    <!-- END VIEW 1: FINANCE -->
+
+    <!-- VIEW 2: INVENTORY & RECIPES (BOM) -->
+    <div id="owner-view-inventory" class="hidden space-y-6">
+      
+      <!-- Section 1: Ingredients KPI Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- KPI 1: Total Valuasi Bahan Baku -->
+        <div class="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-xs flex flex-col justify-between">
+          <div class="flex items-center justify-between text-stone-400 mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-stone-500">Nilai Aset Bahan Baku</span>
+            <div class="w-9 h-9 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center">
+              <i data-lucide="wallet" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div>
+            <div id="ing-kpi-valuation" class="text-2xl sm:text-3xl font-black text-[#2D1406] font-mono">Rp 0</div>
+            <p class="text-[11px] text-stone-500 mt-1">Total nilai modal bahan tersimpan</p>
+          </div>
+        </div>
+
+        <!-- KPI 2: Alert Bahan Menipis -->
+        <div class="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-xs flex flex-col justify-between">
+          <div class="flex items-center justify-between text-stone-400 mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-stone-500">Peringatan Belanja</span>
+            <div id="ing-alert-icon-box" class="w-9 h-9 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div>
+            <div id="ing-kpi-alerts" class="text-2xl sm:text-3xl font-black text-emerald-700 font-mono">0 Bahan</div>
+            <p id="ing-kpi-alerts-sub" class="text-[11px] text-stone-500 mt-1">Semua bahan dalam kondisi aman</p>
+          </div>
+        </div>
+
+        <!-- KPI 3: Total Macam Bahan -->
+        <div class="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-xs flex flex-col justify-between">
+          <div class="flex items-center justify-between text-stone-400 mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-stone-500">Jenis Bahan Terdaftar</span>
+            <div class="w-9 h-9 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center">
+              <i data-lucide="boxes" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div>
+            <div id="ing-kpi-total-items" class="text-2xl sm:text-3xl font-black text-[#2D1406] font-mono">0 Macam</div>
+            <p class="text-[11px] text-stone-500 mt-1">Tepung, Dairy, Kopi & Kemasan</p>
+          </div>
+        </div>
+
+        <!-- KPI 4: Biaya Bahan Terbuang / Waste Loss -->
+        <div class="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-xs flex flex-col justify-between">
+          <div class="flex items-center justify-between text-stone-400 mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-stone-500">Kerugian Bahan (Waste)</span>
+            <div class="w-9 h-9 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center">
+              <i data-lucide="trash-2" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div>
+            <div id="ing-kpi-waste" class="text-2xl sm:text-3xl font-black text-rose-700 font-mono">Rp 0</div>
+            <p class="text-[11px] text-stone-500 mt-1">Total kerugian adonan gagal & expired</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Interactive Ingredients Table -->
+      <div class="bg-white rounded-3xl border border-stone-200/80 shadow-xs overflow-hidden">
+        <div class="p-5 sm:p-6 border-b border-stone-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+              <i data-lucide="package" class="w-5 h-5 text-bakery-orange"></i>
+              <span>Daftar Stok Bahan Baku (Master Ingredients)</span>
+            </h3>
+            <p class="text-xs text-stone-500">Pantau sisa gramasi, liter, dan pcs kemasan secara akurat</p>
+          </div>
+
+          <!-- Filters & Search Bar -->
+          <div class="flex flex-wrap items-center gap-2 text-xs">
+            <div class="relative">
+              <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"></i>
+              <input type="text" id="ing-search-input" oninput="filterIngredientsTable()" placeholder="Cari bahan / supplier..."
+                     class="pl-8 pr-3 py-2 rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none w-48 text-xs">
+            </div>
+
+            <select id="ing-category-filter" onchange="filterIngredientsTable()" class="py-2 px-3 rounded-xl border border-stone-300 text-stone-700 font-medium focus:border-bakery-orange focus:outline-none text-xs">
+              <option value="all">Semua Kategori</option>
+              <option value="Tepung & Bahan Pokok">Tepung & Bahan Pokok</option>
+              <option value="Dairy & Lemak">Dairy & Lemak</option>
+              <option value="Coklat & Topping">Coklat & Topping</option>
+              <option value="Kopi & Minuman">Kopi & Minuman</option>
+              <option value="Packaging & Kemasan">Packaging & Kemasan</option>
+            </select>
+
+            <select id="ing-status-filter" onchange="filterIngredientsTable()" class="py-2 px-3 rounded-xl border border-stone-300 text-stone-700 font-medium focus:border-bakery-orange focus:outline-none text-xs">
+              <option value="all">Semua Status</option>
+              <option value="alert">⚠️ Perlu Belanja (Menipis/Habis)</option>
+              <option value="safe">✅ Stok Aman</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-stone-50 text-stone-500 uppercase tracking-wider text-[10px] font-bold border-b border-stone-200">
+              <tr>
+                <th class="py-3 px-4 sm:px-6">Nama Bahan Baku</th>
+                <th class="py-3 px-4">Kategori</th>
+                <th class="py-3 px-4">Sisa Stok Riil</th>
+                <th class="py-3 px-4 text-center">Batas Min.</th>
+                <th class="py-3 px-4 text-right">Harga Beli</th>
+                <th class="py-3 px-4 text-right">Nilai Aset</th>
+                <th class="py-3 px-4">Supplier / Terakhir Restock</th>
+                <th class="py-3 px-4 text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="ingredients-table-body" class="divide-y divide-stone-100">
+              <!-- Injected via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section 3: Kitchen Capacity & Recipe BOM Cards -->
+      <div class="bg-white rounded-3xl border border-stone-200/80 shadow-xs overflow-hidden">
+        <div class="p-5 sm:p-6 border-b border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+              <i data-lucide="chef-hat" class="w-5 h-5 text-amber-600"></i>
+              <span>Kapasitas Dapur & Resep Menu (Bill of Materials)</span>
+            </h3>
+            <p class="text-xs text-stone-500">Estimasi porsi maksimal yang bisa diproduksi berdasarkan ketersediaan bahan saat ini</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="hidden sm:block text-[11px] text-stone-500 bg-orange-50 text-orange-900 border border-orange-200 px-3 py-1.5 rounded-xl font-medium">
+              💡 <strong>HPP Terkini</strong> dihitung otomatis dari harga bahan baku
+            </div>
+            <button onclick="openCreateMenuModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-xs font-bold shadow-xs transition-colors">
+              <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+              <span>+ Tambah Menu Baru</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="recipe-cards-grid" class="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+
+      <!-- Section 4: Catatan Bahan Rusak & Kedaluwarsa (Waste & Spoilage Tracking) -->
+      <div class="bg-white rounded-3xl border border-stone-200/80 shadow-xs overflow-hidden">
+        <div class="p-5 sm:p-6 border-b border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+              <i data-lucide="trash-2" class="w-5 h-5 text-rose-600"></i>
+              <span>Catatan Bahan Rusak & Kedaluwarsa (Waste Tracking)</span>
+            </h3>
+            <p class="text-xs text-stone-500">Lacak adonan gagal, gosong, tumpah, atau expired beserta nilai kerugian rupiah</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openWasteModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-colors">
+              <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+              <span>+ Catat Waste</span>
+            </button>
+            <button onclick="exportWasteCSV()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold border border-stone-300 transition-colors" title="Export data kerugian bahan ke CSV">
+              <i data-lucide="download" class="w-3.5 h-3.5 text-stone-500"></i>
+              <span>Export CSV</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-stone-50 text-stone-500 uppercase tracking-wider text-[10px] font-bold border-b border-stone-200">
+              <tr>
+                <th class="py-3 px-4 sm:px-6">Waktu</th>
+                <th class="py-3 px-4">Nama Bahan Baku</th>
+                <th class="py-3 px-4">Jumlah Terbuang</th>
+                <th class="py-3 px-4">Alasan Terbuang</th>
+                <th class="py-3 px-4 text-right">Nilai Kerugian (Rp)</th>
+                <th class="py-3 px-4">Keterangan / Kronologi</th>
+                <th class="py-3 px-4">Pelapor</th>
+                <th class="py-3 px-4 text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="waste-table-body" class="divide-y divide-stone-100">
+              <!-- Injected via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section 5: Kartu Riwayat Mutasi Stok (Stock Movement Audit Trail) -->
+      <div class="bg-white rounded-3xl border border-stone-200/80 shadow-xs overflow-hidden">
+        <div class="p-5 sm:p-6 border-b border-stone-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+              <i data-lucide="history" class="w-5 h-5 text-blue-600"></i>
+              <span>Kartu Riwayat Mutasi Stok (Stock Movement Audit Trail)</span>
+            </h3>
+            <p class="text-xs text-stone-500">Catatan kronologis keluar-masuk setiap gram bahan: Pembelian Restock, Penjualan POS, atau Waste</p>
+          </div>
+          
+          <div class="flex flex-wrap items-center gap-2 text-xs">
+            <select id="stock-log-filter-type" onchange="renderStockLogsTable()" class="py-2 px-3 rounded-xl border border-stone-300 text-stone-700 font-medium focus:border-bakery-orange focus:outline-none text-xs">
+              <option value="all">Semua Tipe Mutasi</option>
+              <option value="IN_RESTOCK">📥 Masuk (Restock Gudang)</option>
+              <option value="OUT_SALE">🛒 Keluar (Penjualan Kasir POS)</option>
+              <option value="OUT_WASTE">🗑️ Keluar (Bahan Rusak / Waste)</option>
+            </select>
+
+            <select id="stock-log-filter-ing" onchange="renderStockLogsTable()" class="py-2 px-3 rounded-xl border border-stone-300 text-stone-700 font-medium focus:border-bakery-orange focus:outline-none text-xs max-w-[180px]">
+              <option value="all">Semua Bahan Baku</option>
+            </select>
+
+            <button onclick="exportStockLogsCSV()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold border border-stone-300 transition-colors" title="Export riwayat mutasi stok ke CSV">
+              <i data-lucide="download" class="w-3.5 h-3.5 text-stone-500"></i>
+              <span>Export CSV</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto max-h-[420px]">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-stone-50 text-stone-500 uppercase tracking-wider text-[10px] font-bold border-b border-stone-200 sticky top-0 z-10 shadow-2xs">
+              <tr>
+                <th class="py-3 px-4 sm:px-6">Waktu Mutasi</th>
+                <th class="py-3 px-4">Nama Bahan</th>
+                <th class="py-3 px-4 text-center">Tipe Transaksi</th>
+                <th class="py-3 px-4 text-right">Perubahan Qty</th>
+                <th class="py-3 px-4 text-right">Sisa Stok Akhir</th>
+                <th class="py-3 px-4">Referensi Transaksi</th>
+                <th class="py-3 px-4">Keterangan</th>
+              </tr>
+            </thead>
+            <tbody id="stock-logs-table-body" class="divide-y divide-stone-100">
+              <!-- Injected via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+    <!-- END VIEW 2: INVENTORY -->
+
+  </main>
+
+  <!-- =========================================================================
+       MODAL: UBAH MODAL BAHAN (HPP) PER MENU
+       ========================================================================= -->
+  <div id="cost-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
+    <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 animate-in fade-in zoom-in-95 duration-150">
+      <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+        <h4 class="text-sm font-extrabold text-[#2D1406]">Ubah Modal Bahan (HPP)</h4>
+        <button onclick="closeCostModal()" class="p-1 rounded-full text-stone-400 hover:text-stone-700">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="cost-form" onsubmit="submitCostUpdate(event)" class="mt-4 space-y-3.5 text-xs">
+        <input type="hidden" id="cost-item-id">
+        <div>
+          <label class="block font-bold text-stone-700 mb-1">Nama Produk:</label>
+          <div id="cost-item-name" class="font-bold text-stone-900 text-sm">Brulee Baby</div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-stone-700 mb-1">Harga Jual Saat Ini:</label>
+          <div id="cost-item-price" class="font-mono text-stone-500 font-semibold">Rp 28.000</div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-stone-700 mb-1">Biaya Modal Bahan / Pcs (HPP):</label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-stone-400">Rp</span>
+            <input type="number" id="cost-input-val" required min="0" step="500" placeholder="Contoh: 10500" 
+                   class="w-full pl-9 pr-3 py-2.5 text-sm font-mono font-bold rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none">
+          </div>
+          <p class="text-[11px] text-stone-400 mt-1">Termasuk bahan adonan, filling, topping, dan packaging.</p>
+        </div>
+
+        <div class="pt-3 flex gap-2">
+          <button type="button" onclick="closeCostModal()" class="w-1/3 py-2.5 rounded-xl border border-stone-300 font-bold text-stone-600 hover:bg-stone-50">
+            Batal
+          </button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white font-bold shadow-md transition-all">
+            Simpan HPP
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: RESTOCK BELANJA BAHAN BAKU (CEPAT)
+       ========================================================================= -->
+  <div id="restock-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
+    <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 animate-in fade-in zoom-in-95 duration-150">
+      <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+        <h4 class="text-sm font-extrabold text-[#2D1406] flex items-center gap-1.5">
+          <i data-lucide="truck" class="w-4 h-4 text-emerald-600"></i>
+          <span>Restock Belanja Bahan</span>
+        </h4>
+        <button onclick="closeRestockModal()" class="p-1 rounded-full text-stone-400 hover:text-stone-700">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="restock-form" onsubmit="submitRestock(event)" class="mt-4 space-y-3.5 text-xs">
+        <input type="hidden" id="restock-ing-id">
+        <div>
+          <label class="block font-bold text-stone-700 mb-0.5">Nama Bahan Baku:</label>
+          <div id="restock-ing-name" class="font-black text-stone-900 text-sm">Tepung Terigu</div>
+          <div class="text-stone-500 text-[11px] mt-0.5">Sisa stok saat ini: <strong id="restock-current-stock" class="font-mono text-emerald-700 font-bold">0</strong></div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-stone-700 mb-1">Tambah Jumlah Belanja (+):</label>
+          <div class="relative">
+            <input type="number" id="restock-add-qty" required min="0.001" step="any" placeholder="Contoh: 10" 
+                   class="w-full pl-3 pr-16 py-2.5 text-sm font-mono font-bold rounded-xl border border-stone-300 focus:border-emerald-600 focus:outline-none">
+            <span id="restock-unit-badge" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-stone-400 uppercase">KG</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-stone-700 mb-1">Harga Beli Baru / Satuan (Opsional):</label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-stone-400">Rp</span>
+            <input type="number" id="restock-cost-input" min="0" step="100" placeholder="Kosongkan jika harga tetap" 
+                   class="w-full pl-9 pr-3 py-2 text-xs font-mono rounded-xl border border-stone-300 focus:border-emerald-600 focus:outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-stone-700 mb-1">Nama Toko / Supplier:</label>
+          <input type="text" id="restock-supplier-input" placeholder="Contoh: Bogasari / Pasar Baru"
+                 class="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 focus:border-emerald-600 focus:outline-none">
+        </div>
+
+        <div class="pt-3 flex gap-2">
+          <button type="button" onclick="closeRestockModal()" class="w-1/3 py-2.5 rounded-xl border border-stone-300 font-bold text-stone-600 hover:bg-stone-50">
+            Batal
+          </button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md transition-all flex items-center justify-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Simpan Restock</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: TAMBAH / EDIT BAHAN BAKU
+       ========================================================================= -->
+  <div id="ingredient-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
+    <div class="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 animate-in fade-in zoom-in-95 duration-150">
+      <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+        <h4 id="ing-modal-title" class="text-sm font-extrabold text-[#2D1406]">Tambah Bahan Baku Baru</h4>
+        <button onclick="closeIngredientModal()" class="p-1 rounded-full text-stone-400 hover:text-stone-700">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="ingredient-form" onsubmit="submitIngredientForm(event)" class="mt-4 space-y-3 text-xs">
+        <input type="hidden" id="form-ing-id">
+        <div>
+          <label class="block font-bold text-stone-700 mb-1">Nama Bahan Baku:</label>
+          <input type="text" id="form-ing-name" required placeholder="Contoh: Tepung Cakra Kembar Emas"
+                 class="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Kategori:</label>
+            <select id="form-ing-category" class="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none font-medium">
+              <option value="Tepung & Bahan Pokok">Tepung & Bahan Pokok</option>
+              <option value="Dairy & Lemak">Dairy & Lemak</option>
+              <option value="Coklat & Topping">Coklat & Topping</option>
+              <option value="Kopi & Minuman">Kopi & Minuman</option>
+              <option value="Packaging & Kemasan">Packaging & Kemasan</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Satuan:</label>
+            <select id="form-ing-unit" class="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none font-medium">
+              <option value="kg">kg (Kilogram)</option>
+              <option value="liter">liter (Liter)</option>
+              <option value="pcs">pcs (Pieces)</option>
+              <option value="gram">gram</option>
+              <option value="ml">ml</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Stok Saat Ini:</label>
+            <input type="number" id="form-ing-stock" required min="0" step="any" placeholder="0"
+                   class="w-full px-3 py-2 text-xs font-mono font-bold rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Batas Min. Peringatan:</label>
+            <input type="number" id="form-ing-min" required min="0" step="any" placeholder="5"
+                   class="w-full px-3 py-2 text-xs font-mono rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Harga Beli / Satuan (Rp):</label>
+            <input type="number" id="form-ing-cost" required min="0" step="100" placeholder="15000"
+                   class="w-full px-3 py-2 text-xs font-mono rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Supplier / Toko:</label>
+            <input type="text" id="form-ing-supplier" placeholder="Nama Toko / Distributor"
+                   class="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none">
+          </div>
+        </div>
+
+        <div class="pt-3 flex gap-2">
+          <button type="button" onclick="closeIngredientModal()" class="w-1/3 py-2.5 rounded-xl border border-stone-300 font-bold text-stone-600 hover:bg-stone-50">
+            Batal
+          </button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white font-bold shadow-md transition-all">
+            Simpan Bahan Baku
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: ATUR & RACIK RESEP MENU (BOM - BILL OF MATERIALS)
+       ========================================================================= -->
+  <div id="recipe-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
+    <div class="w-full max-w-2xl bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-stone-200 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
+      
+      <!-- Header Modal -->
+      <div class="flex items-center justify-between pb-4 border-b border-stone-100 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="relative w-12 h-12 shrink-0">
+            <img id="recipe-modal-menu-img" src="./assets/logo-chewys-orange.png" class="w-12 h-12 rounded-2xl object-cover border border-stone-200" alt="Menu" onerror="this.src='./assets/logo-chewys-orange.png'">
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-extrabold uppercase tracking-wider text-bakery-orange bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200">Kamus Resep (BOM)</span>
+              <span id="recipe-modal-mode-badge" class="text-[10px] text-stone-500 font-semibold bg-stone-100 px-2 py-0.5 rounded-md">Edit Menu</span>
+            </div>
+            <h3 id="recipe-modal-title" class="text-base sm:text-lg font-black text-[#2D1406] leading-tight">Edit Menu & Racik Resep</h3>
+          </div>
+        </div>
+        <button onclick="closeRecipeModal()" class="p-2 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Form Content (Scrollable) -->
+      <form id="recipe-editor-form" onsubmit="submitRecipeForm(event)" class="mt-4 flex-1 overflow-y-auto space-y-4 pr-1 text-xs">
+        <input type="hidden" id="recipe-modal-menu-id">
+        <input type="hidden" id="recipe-modal-is-new" value="false">
+
+        <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3 text-amber-900 text-xs flex items-start gap-2.5">
+          <i data-lucide="info" class="w-4 h-4 text-amber-600 mt-0.5 shrink-0"></i>
+          <p class="leading-relaxed">
+            Atur nama, kategori, harga jual kasir, serta takaran bahan baku per <strong>1 porsi</strong>. Stok bahan otomatis terpotong saat pesanan dibuat dan HPP dihitung langsung!
+          </p>
+        </div>
+
+        <!-- Section 1: Menu Info (Name, Category, Price, Image) -->
+        <div class="bg-stone-50/80 border border-stone-200/80 rounded-2xl p-3.5 space-y-3">
+          <div class="text-[11px] uppercase font-bold text-stone-500 tracking-wider flex items-center gap-1.5">
+            <i data-lucide="tag" class="w-3.5 h-3.5 text-bakery-orange"></i>
+            <span>Informasi & Identitas Menu</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Nama Menu / Produk <span class="text-rose-500">*</span></label>
+              <input type="text" id="recipe-modal-name-input" required placeholder="Contoh: Triple Chocolate Cookie" 
+                     class="w-full px-3 py-2 rounded-xl border border-stone-300 font-semibold text-xs focus:border-bakery-orange focus:outline-none bg-white">
+            </div>
+
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Kategori Produk <span class="text-rose-500">*</span></label>
+              <select id="recipe-modal-cat-input" required class="w-full px-3 py-2 rounded-xl border border-stone-300 font-semibold text-xs focus:border-bakery-orange focus:outline-none bg-white">
+                <option value="bomboloni">Bomboloni</option>
+                <option value="brownies">Brownies</option>
+                <option value="cookies">Cookies</option>
+                <option value="beverages">Beverages / Minuman</option>
+                <option value="bundling">Paket Bundling</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Harga Jual Kasir (Rp) <span class="text-rose-500">*</span></label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-stone-400 text-xs">Rp</span>
+                <input type="number" id="recipe-modal-price-input" required min="500" step="500" placeholder="25000" oninput="calculateRecipeModalTotals()"
+                       class="w-full pl-9 pr-3 py-2 rounded-xl border border-stone-300 font-mono font-bold text-xs focus:border-bakery-orange focus:outline-none bg-white">
+              </div>
+            </div>
+
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">URL / Link Foto Menu</label>
+              <input type="text" id="recipe-modal-img-input" placeholder="./assets/brulee-baby.webp atau link foto..." oninput="updateRecipeModalImgPreview(this.value)"
+                     class="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs focus:border-bakery-orange focus:outline-none bg-white">
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Dynamic Rows of Ingredients -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="font-bold text-stone-700 text-xs flex items-center gap-1.5">
+              <i data-lucide="scale" class="w-3.5 h-3.5 text-amber-600"></i>
+              <span>Daftar Bahan & Takaran per Porsi:</span>
+            </label>
+            <button type="button" onclick="addRecipeIngredientRow()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-bakery-orange text-xs font-bold border border-orange-200 transition-colors">
+              <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+              <span>Tambah Baris Bahan</span>
+            </button>
+          </div>
+
+          <div class="space-y-2.5" id="recipe-rows-container">
+            <!-- Rows injected via JS -->
+          </div>
+        </div>
+
+        <!-- Live HPP Calculator Box -->
+        <div class="bg-stone-50 border border-stone-200 rounded-2xl p-4 space-y-2 mt-4">
+          <div class="flex items-center justify-between">
+            <span class="text-stone-500 font-medium">Harga Jual Menu:</span>
+            <span id="recipe-modal-price-preview" class="font-mono font-bold text-stone-800">Rp 0</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-stone-500 font-medium">Estimasi Modal Bahan (HPP Riil):</span>
+            <span id="recipe-modal-calculated-hpp" class="font-mono font-black text-emerald-700 text-sm">Rp 0</span>
+          </div>
+          <div class="flex items-center justify-between pt-2 border-t border-stone-200">
+            <span class="text-stone-500 font-medium">Estimasi Margin Keuntungan:</span>
+            <span id="recipe-modal-margin" class="font-mono font-extrabold text-emerald-800">0%</span>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="pt-3 flex gap-2 shrink-0 border-t border-stone-100">
+          <button type="button" onclick="closeRecipeModal()" class="w-1/3 py-2.5 rounded-xl border border-stone-300 font-bold text-stone-600 hover:bg-stone-50 transition-colors">
+            Batal
+          </button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white font-bold shadow-md transition-all flex items-center justify-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span id="recipe-modal-submit-btn-text">Simpan Menu & Resep</span>
+          </button>
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: CATAT BAHAN RUSAK / WASTE & SPOILAGE
+       ========================================================================= -->
+  <div id="waste-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
+    <div class="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 animate-in fade-in zoom-in-95 duration-150">
+      <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center">
+            <i data-lucide="trash-2" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h4 class="text-sm font-extrabold text-[#2D1406]">Catat Bahan Rusak / Terbuang</h4>
+            <span class="text-[10px] text-stone-400">Waste & Spoilage Tracking</span>
+          </div>
+        </div>
+        <button onclick="closeWasteModal()" class="p-1 rounded-full text-stone-400 hover:text-stone-700">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="waste-form" onsubmit="submitWasteRecord(event)" class="mt-4 space-y-3.5 text-xs">
+        <div>
+          <label class="block font-bold text-stone-700 mb-1">Pilih Bahan Baku <span class="text-rose-500">*</span></label>
+          <select id="waste-ing-select" required onchange="onWasteIngChange()" class="w-full px-3 py-2 rounded-xl border border-stone-300 font-semibold text-xs focus:border-bakery-orange focus:outline-none bg-white">
+            <!-- Injected via JS -->
+          </select>
+          <p id="waste-current-stock-info" class="text-[10px] text-stone-500 mt-1">Sisa stok saat ini: -</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Jumlah Terbuang <span class="text-rose-500">*</span></label>
+            <div class="relative">
+              <input type="number" id="waste-qty-input" required min="0.0001" step="any" placeholder="0" oninput="calculateWasteLossPreview()"
+                     class="w-full pl-3 pr-10 py-2 rounded-xl border border-stone-300 font-mono font-bold text-xs focus:border-bakery-orange focus:outline-none bg-white">
+              <span id="waste-unit-badge" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-stone-400 uppercase">kg</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Alasan Terbuang <span class="text-rose-500">*</span></label>
+            <select id="waste-reason-select" required class="w-full px-3 py-2 rounded-xl border border-stone-300 font-semibold text-xs focus:border-bakery-orange focus:outline-none bg-white">
+              <option value="Adonan Gagal / Bantat">Adonan Gagal / Bantat</option>
+              <option value="Gosong / Overbaked">Gosong / Overbaked</option>
+              <option value="Kedaluwarsa / Basi">Kedaluwarsa / Basi</option>
+              <option value="Tumpah / Rusak Fisik">Tumpah / Rusak Fisik</option>
+              <option value="Uji Rasa / QC Trial">Uji Rasa / QC Trial</option>
+              <option value="Kemasan Rusak / Sobek">Kemasan Rusak / Sobek</option>
+              <option value="Lainnya">Lainnya</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-stone-700 mb-1">Keterangan / Kronologi Singkat (Opsional)</label>
+          <input type="text" id="waste-note-input" placeholder="Contoh: Oven loyang atas terlalu panas"
+                 class="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs focus:border-bakery-orange focus:outline-none bg-white">
+        </div>
+
+        <div>
+          <label class="block font-bold text-stone-700 mb-1">Petugas / Pelapor</label>
+          <input type="text" id="waste-reporter-input" value="Chef Dapur"
+                 class="w-full px-3 py-2 rounded-xl border border-stone-300 font-semibold text-xs focus:border-bakery-orange focus:outline-none bg-white">
+        </div>
+
+        <!-- Live Loss Preview Box -->
+        <div class="bg-rose-50/70 border border-rose-200/80 rounded-2xl p-3 flex items-center justify-between text-xs">
+          <span class="text-rose-800 font-medium">Estimasi Kerugian Biaya:</span>
+          <span id="waste-loss-preview" class="font-mono font-black text-rose-700 text-sm">Rp 0</span>
+        </div>
+
+        <div class="pt-2 flex gap-2">
+          <button type="button" onclick="closeWasteModal()" class="w-1/3 py-2.5 rounded-xl border border-stone-300 font-bold text-stone-600 hover:bg-stone-50">
+            Batal
+          </button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold shadow-md transition-colors flex items-center justify-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Potong Stok & Simpan</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       JAVASCRIPT LOGIC & CHART ENGINE
+       ========================================================================= -->
+  <script>
+    let currentRange = '7d';
+    let analyticsData = null;
+    let trendChartInstance = null;
+    let peakHoursChartInstance = null;
+    let categoryChartInstance = null;
+
+    // Check login state
+    function checkOwnerAuth() {
+      const isAuth = sessionStorage.getItem('chewys_owner_auth');
+      const overlay = document.getElementById('owner-auth-overlay');
+      if (isAuth === 'true') {
+        overlay.classList.add('hidden');
+        loadAnalytics();
+        loadIngredients();
+        fetchIngredientsSummaryBadge();
+      } else {
+        overlay.classList.remove('hidden');
+      }
+    }
+
+    async function handleOwnerLogin(e) {
+      e.preventDefault();
+      const pin = document.getElementById('owner-pin-input').value;
+      const errEl = document.getElementById('owner-pin-error');
+      
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin })
+        });
+        const data = await res.json();
+        if (data.success) {
+          sessionStorage.setItem('chewys_owner_auth', 'true');
+          document.getElementById('owner-auth-overlay').classList.add('hidden');
+          loadAnalytics();
+          loadIngredients();
+          fetchIngredientsSummaryBadge();
+        } else {
+          errEl.classList.remove('hidden');
+        }
+      } catch (err) {
+        errEl.textContent = 'Gagal menghubungi server';
+        errEl.classList.remove('hidden');
+      }
+    }
+
+    function logoutOwner() {
+      sessionStorage.removeItem('chewys_owner_auth');
+      window.location.reload();
+    }
+
+    function setRange(range) {
+      currentRange = range;
+      document.querySelectorAll('.range-btn').forEach(btn => {
+        btn.className = 'range-btn px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 transition-all';
+      });
+      document.getElementById(`range-btn-${range}`).className = 'range-btn px-3 py-1.5 rounded-lg bg-white text-bakery-orange shadow-xs font-bold transition-all';
+      loadAnalytics();
+    }
+
+    function formatRupiah(num) {
+      return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+    }
+
+    // Load Analytics from API
+    async function loadAnalytics() {
+      try {
+        const res = await fetch(`/api/owner/analytics?range=${currentRange}`);
+        const data = await res.json();
+        if (data.success && data.analytics) {
+          analyticsData = data.analytics;
+          renderKPIs(analyticsData);
+          renderTrendChart(analyticsData.timeline);
+          renderPeakHoursChart(analyticsData.peakHours);
+          renderCategoryChart(analyticsData.categoryBreakdown);
+          renderPaymentBreakdown(analyticsData.paymentStats);
+          renderProfitabilityTable(analyticsData.menuProfitability);
+          renderRecentOrders(analyticsData.recentOrders);
+        }
+      } catch (err) {
+        console.error('Error loading analytics:', err);
+      }
+      lucide.createIcons();
+    }
+
+    // Render 4 KPI Cards
+    function renderKPIs(a) {
+      document.getElementById('kpi-revenue').textContent = formatRupiah(a.totalRevenue);
+      document.getElementById('kpi-aov').textContent = `Rata-rata: ${formatRupiah(a.avgOrderValue)} / transaksi`;
+      
+      document.getElementById('kpi-profit').textContent = formatRupiah(a.totalProfit);
+      document.getElementById('kpi-margin-badge').textContent = `Margin: ${a.profitMarginPercent}%`;
+
+      document.getElementById('kpi-cost').textContent = formatRupiah(a.totalCost);
+
+      document.getElementById('kpi-orders').textContent = `${a.totalOrders} Struk`;
+      document.getElementById('kpi-items-sold').textContent = `${a.totalItemsSold} porsi dessert terjual`;
+    }
+
+    // Chart 1: Trend Omset & Laba (Line Chart)
+    function renderTrendChart(timeline = []) {
+      const ctx = document.getElementById('trendChart').getContext('2d');
+      if (trendChartInstance) trendChartInstance.destroy();
+
+      const labels = timeline.length > 0 ? timeline.map(t => {
+        const parts = t.date.split('-');
+        return `${parts[2]}/${parts[1]}`;
+      }) : ['Hari Ini'];
+
+      const revenueData = timeline.length > 0 ? timeline.map(t => t.revenue) : [0];
+      const profitData = timeline.length > 0 ? timeline.map(t => t.profit) : [0];
+
+      trendChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Total Omset',
+              data: revenueData,
+              borderColor: '#FE6134',
+              backgroundColor: 'rgba(254, 97, 52, 0.08)',
+              fill: true,
+              tension: 0.35,
+              borderWidth: 3,
+              pointBackgroundColor: '#FE6134',
+              pointRadius: 4
+            },
+            {
+              label: 'Laba Bersih',
+              data: profitData,
+              borderColor: '#10B981',
+              backgroundColor: 'transparent',
+              borderDash: [4, 4],
+              tension: 0.35,
+              borderWidth: 2.5,
+              pointBackgroundColor: '#10B981',
+              pointRadius: 3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${formatRupiah(ctx.parsed.y)}`
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: (val) => val >= 1000000 ? (val / 1000000).toFixed(1) + 'M' : (val >= 1000 ? (val / 1000) + 'k' : val),
+                font: { size: 10 }
+              },
+              grid: { color: '#f1f1f1' }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 10 } }
+            }
+          }
+        }
+      });
+    }
+
+    // Chart 2: Jam Sibuk Restoran (Bar Chart)
+    function renderPeakHoursChart(peakHours = []) {
+      const ctx = document.getElementById('peakHoursChart').getContext('2d');
+      if (peakHoursChartInstance) peakHoursChartInstance.destroy();
+
+      const labels = peakHours.map(p => p.hour);
+      const data = peakHours.map(p => p.count);
+
+      peakHoursChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Jumlah Pesanan',
+            data,
+            backgroundColor: data.map(val => val === Math.max(...data) && val > 0 ? '#FE6134' : 'rgba(254, 97, 52, 0.35)'),
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.parsed.y} pesanan masuk`
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { stepSize: 1, font: { size: 10 } },
+              grid: { color: '#f1f1f1' }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 9 }, maxRotation: 45 }
+            }
+          }
+        }
+      });
+    }
+
+    // Chart 3: Distribusi Kategori (Donut)
+    function renderCategoryChart(categories = []) {
+      const ctx = document.getElementById('categoryChart').getContext('2d');
+      if (categoryChartInstance) categoryChartInstance.destroy();
+
+      if (categories.length === 0) {
+        categories = [{ name: 'Belum ada data', revenue: 1 }];
+      }
+
+      categoryChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: categories.map(c => c.name),
+          datasets: [{
+            data: categories.map(c => c.revenue),
+            backgroundColor: ['#FE6134', '#2D1406', '#10B981', '#F59E0B', '#6366F1'],
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { boxWidth: 10, font: { size: 10 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => ` ${ctx.label}: ${formatRupiah(ctx.parsed)}`
+              }
+            }
+          },
+          cutout: '70%'
+        }
+      });
+    }
+
+    // Render Payment Breakdown
+    function renderPaymentBreakdown(stats = {}) {
+      const container = document.getElementById('payment-breakdown-list');
+      const totalAmt = (stats.cash?.total || 0) + (stats.qris?.total || 0) + (stats.edc?.total || 0);
+
+      const getPct = (val) => totalAmt > 0 ? Math.round((val / totalAmt) * 100) : 0;
+
+      container.innerHTML = `
+        <div class="space-y-1">
+          <div class="flex justify-between font-bold">
+            <span class="flex items-center gap-1.5"><i data-lucide="banknote" class="w-3.5 h-3.5 text-emerald-600"></i> Tunai (Cash)</span>
+            <span class="font-mono">${formatRupiah(stats.cash?.total || 0)} (${getPct(stats.cash?.total || 0)}%)</span>
+          </div>
+          <div class="w-full bg-stone-100 h-2 rounded-full overflow-hidden">
+            <div class="bg-emerald-500 h-full rounded-full" style="width: ${getPct(stats.cash?.total || 0)}%"></div>
+          </div>
+        </div>
+
+        <div class="space-y-1">
+          <div class="flex justify-between font-bold">
+            <span class="flex items-center gap-1.5"><i data-lucide="qr-code" class="w-3.5 h-3.5 text-blue-600"></i> QRIS Digital</span>
+            <span class="font-mono">${formatRupiah(stats.qris?.total || 0)} (${getPct(stats.qris?.total || 0)}%)</span>
+          </div>
+          <div class="w-full bg-stone-100 h-2 rounded-full overflow-hidden">
+            <div class="bg-blue-500 h-full rounded-full" style="width: ${getPct(stats.qris?.total || 0)}%"></div>
+          </div>
+        </div>
+
+        <div class="space-y-1">
+          <div class="flex justify-between font-bold">
+            <span class="flex items-center gap-1.5"><i data-lucide="credit-card" class="w-3.5 h-3.5 text-purple-600"></i> Debit / Kartu EDC</span>
+            <span class="font-mono">${formatRupiah(stats.edc?.total || 0)} (${getPct(stats.edc?.total || 0)}%)</span>
+          </div>
+          <div class="w-full bg-stone-100 h-2 rounded-full overflow-hidden">
+            <div class="bg-purple-500 h-full rounded-full" style="width: ${getPct(stats.edc?.total || 0)}%"></div>
+          </div>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+
+    // Render Menu Profitability Table
+    function renderProfitabilityTable(items = []) {
+      const container = document.getElementById('profitability-table-body');
+      if (items.length === 0) {
+        container.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-stone-400">Belum ada data penjualan pada periode ini</td></tr>`;
+        return;
+      }
+
+      container.innerHTML = items.map((item, idx) => `
+        <tr class="hover:bg-stone-50 transition-colors">
+          <td class="py-3 px-4 sm:px-6">
+            <div class="font-bold text-[#2D1406]">${item.name}</div>
+            <span class="text-[10px] text-stone-400 capitalize">${item.category}</span>
+          </td>
+          <td class="py-3 px-4 text-center font-mono font-bold">${item.qty} pcs</td>
+          <td class="py-3 px-4 text-right font-mono">${formatRupiah(item.unitPrice)}</td>
+          <td class="py-3 px-4 text-right font-mono text-stone-500">${formatRupiah(item.unitCost)}</td>
+          <td class="py-3 px-4 text-right font-mono font-bold">${formatRupiah(item.revenue)}</td>
+          <td class="py-3 px-4 text-right font-mono font-extrabold text-emerald-700">${formatRupiah(item.profit)}</td>
+          <td class="py-3 px-4 text-center">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${item.marginPercent >= 60 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+              ${item.marginPercent}%
+            </span>
+          </td>
+          <td class="py-3 px-4 text-center">
+            <button onclick="openCostModal('${item.id}', '${item.name.replace(/'/g, "\\'")}', ${item.unitPrice}, ${item.unitCost})" 
+                    class="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-orange-50 hover:text-bakery-orange border border-stone-200 text-[10px] font-bold transition-colors">
+              Ubah HPP
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Render Recent Orders Table
+    function renderRecentOrders(orders = []) {
+      const container = document.getElementById('recent-orders-table-body');
+      if (orders.length === 0) {
+        container.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-stone-400">Belum ada riwayat pesanan</td></tr>`;
+        return;
+      }
+
+      container.innerHTML = orders.map(o => {
+        const d = new Date(o.createdAt);
+        const timeStr = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        const itemsStr = (o.items || []).map(i => `${i.name} (${i.qty})`).join(', ');
+
+        return `
+          <tr class="hover:bg-stone-50 transition-colors">
+            <td class="py-3 px-4 sm:px-6 font-mono font-bold text-[#2D1406]">${o.id}</td>
+            <td class="py-3 px-4 text-stone-500">${timeStr}</td>
+            <td class="py-3 px-4">
+              <span class="font-bold capitalize">${o.orderType}</span> 
+              <span class="text-stone-400 text-[11px]">(${o.tableOrCustomer})</span>
+            </td>
+            <td class="py-3 px-4 max-w-xs truncate text-stone-700">${itemsStr}</td>
+            <td class="py-3 px-4 uppercase font-bold text-[10px] text-stone-600">${o.paymentMethod}</td>
+            <td class="py-3 px-4 text-right font-mono font-black text-bakery-orange">${formatRupiah(o.total)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Modal: Ubah Modal Bahan (HPP)
+    function openCostModal(id, name, price, cost) {
+      document.getElementById('cost-item-id').value = id;
+      document.getElementById('cost-item-name').textContent = name;
+      document.getElementById('cost-item-price').textContent = formatRupiah(price);
+      document.getElementById('cost-input-val').value = cost;
+      document.getElementById('cost-modal').classList.remove('hidden');
+    }
+
+    function closeCostModal() {
+      document.getElementById('cost-modal').classList.add('hidden');
+    }
+
+    async function submitCostUpdate(e) {
+      e.preventDefault();
+      const id = document.getElementById('cost-item-id').value;
+      const costPrice = parseInt(document.getElementById('cost-input-val').value, 10) || 0;
+
+      try {
+        const res = await fetch('/api/owner/set-cost', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, costPrice })
+        });
+        const data = await res.json();
+        if (data.success) {
+          closeCostModal();
+          loadAnalytics();
+        } else {
+          alert('Gagal update HPP: ' + (data.message || 'Error server'));
+        }
+      } catch (err) {
+        alert('Koneksi gagal');
+      }
+    }
+
+    // Share Closing WhatsApp to Owner Phone
+    function shareClosingSummaryWA() {
+      if (!analyticsData) return;
+      const a = analyticsData;
+      const todayStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+      let msg = `*📊 LAPORAN KEUANGAN & CLOSING CHEWY'S DESSERT*\n`;
+      msg += `📅 Tanggal: ${todayStr} (Filter: ${currentRange.toUpperCase()})\n`;
+      msg += `--------------------------------\n`;
+      msg += `💰 *Total Omset Penjualan:* ${formatRupiah(a.totalRevenue)}\n`;
+      msg += `💵 *Estimasi Laba Bersih:* ${formatRupiah(a.totalProfit)} (Margin ${a.profitMarginPercent}%)\n`;
+      msg += `📦 *Modal Bahan (HPP):* ${formatRupiah(a.totalCost)}\n`;
+      msg += `🧾 *Jumlah Transaksi:* ${a.totalOrders} Struk\n`;
+      msg += `🧁 *Total Dessert Terjual:* ${a.totalItemsSold} pcs\n`;
+      msg += `--------------------------------\n`;
+      msg += `*Metode Pembayaran:*\n`;
+      msg += `• Tunai: ${formatRupiah(a.paymentStats?.cash?.total || 0)} (${a.paymentStats?.cash?.count || 0}x)\n`;
+      msg += `• QRIS: ${formatRupiah(a.paymentStats?.qris?.total || 0)} (${a.paymentStats?.qris?.count || 0}x)\n`;
+      msg += `• EDC: ${formatRupiah(a.paymentStats?.edc?.total || 0)} (${a.paymentStats?.edc?.count || 0}x)\n`;
+      msg += `--------------------------------\n`;
+      msg += `*Top 3 Menu Paling Cuan:*\n`;
+      (a.menuProfitability || []).slice(0, 3).forEach((m, idx) => {
+        msg += `${idx + 1}. ${m.name} (${m.qty} pcs) -> Profit ${formatRupiah(m.profit)}\n`;
+      });
+      msg += `--------------------------------\n`;
+      msg += `_Laporan otomatis dari Chewy's Owner Portal ✨_`;
+
+      const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+      window.open(waUrl, '_blank');
+    }
+
+    // =========================================================================
+    // INVENTORY & RECIPES (BOM) LOGIC
+    // =========================================================================
+    let currentOwnerView = 'finance';
+    let allIngredientsList = [];
+    let allRecipesData = {};
+    let allMenuItemsList = [];
+    let allWasteLogs = [];
+    let allStockLogs = [];
+
+    function switchOwnerView(view) {
+      currentOwnerView = view;
+      const tabFin = document.getElementById('view-tab-finance');
+      const tabInv = document.getElementById('view-tab-inventory');
+      const viewFin = document.getElementById('owner-view-finance');
+      const viewInv = document.getElementById('owner-view-inventory');
+      const topActions = document.getElementById('inventory-top-actions');
+
+      if (view === 'finance') {
+        tabFin.className = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-[#2D1406] text-white shadow-xs transition-all';
+        tabInv.className = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all';
+        viewFin.classList.remove('hidden');
+        viewInv.classList.add('hidden');
+        topActions.classList.add('hidden');
+      } else {
+        tabInv.className = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-bakery-orange text-white shadow-xs transition-all';
+        tabFin.className = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all';
+        viewFin.classList.add('hidden');
+        viewInv.classList.remove('hidden');
+        topActions.classList.remove('hidden');
+        loadIngredients();
+      }
+      lucide.createIcons();
+    }
+
+    async function fetchIngredientsSummaryBadge() {
+      try {
+        const res = await fetch('/api/owner/ingredients');
+        const data = await res.json();
+        if (data.success && data.summary) {
+          const badge = document.getElementById('tab-inventory-alert-badge');
+          if (data.summary.lowStockCount > 0) {
+            badge.textContent = `${data.summary.lowStockCount} Alert`;
+            badge.classList.remove('hidden');
+          } else {
+            badge.classList.add('hidden');
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching ingredients summary:', e);
+      }
+    }
+
+    async function loadIngredients() {
+      try {
+        const [ingRes, menuRes] = await Promise.all([
+          fetch('/api/owner/ingredients'),
+          fetch('/api/menu')
+        ]);
+        const ingData = await ingRes.json();
+        const menuData = await menuRes.json();
+
+        if (ingData.success) {
+          allIngredientsList = ingData.ingredients || [];
+          allRecipesData = ingData.recipes || {};
+          allWasteLogs = ingData.wasteLogs || [];
+          allStockLogs = ingData.stockLogs || [];
+          allMenuItemsList = (menuData.data && Array.isArray(menuData.data.menuItems)) 
+            ? menuData.data.menuItems 
+            : (Array.isArray(menuData.menuItems) ? menuData.menuItems : []);
+
+          // Update Summary KPIs
+          document.getElementById('ing-kpi-valuation').textContent = formatRupiah(ingData.summary?.totalValuation || 0);
+          document.getElementById('ing-kpi-total-items').textContent = `${allIngredientsList.length} Macam`;
+          
+          const wasteKpi = document.getElementById('ing-kpi-waste');
+          if (wasteKpi) {
+            wasteKpi.textContent = formatRupiah(ingData.summary?.totalWasteLoss || 0);
+          }
+
+          const alertCount = ingData.summary?.lowStockCount || 0;
+          const alertKpi = document.getElementById('ing-kpi-alerts');
+          const alertSub = document.getElementById('ing-kpi-alerts-sub');
+          const alertIcon = document.getElementById('ing-alert-icon-box');
+          const badge = document.getElementById('tab-inventory-alert-badge');
+
+          if (alertCount > 0) {
+            alertKpi.textContent = `${alertCount} Perlu Belanja`;
+            alertKpi.className = 'text-2xl sm:text-3xl font-black text-rose-600 font-mono';
+            alertSub.textContent = 'Bahan baku menipis di bawah batas minimum';
+            alertIcon.className = 'w-9 h-9 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center';
+            badge.textContent = `${alertCount} Alert`;
+            badge.classList.remove('hidden');
+          } else {
+            alertKpi.textContent = '0 Bahan';
+            alertKpi.className = 'text-2xl sm:text-3xl font-black text-emerald-700 font-mono';
+            alertSub.textContent = 'Semua bahan dalam kondisi aman';
+            alertIcon.className = 'w-9 h-9 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center';
+            badge.classList.add('hidden');
+          }
+
+          filterIngredientsTable();
+          renderRecipeBOMCards();
+          renderWasteTable();
+          populateStockLogFilterOptions();
+          renderStockLogsTable();
+        }
+      } catch (err) {
+        console.error('Error loading ingredients:', err);
+      }
+    }
+
+    function filterIngredientsTable() {
+      const q = (document.getElementById('ing-search-input')?.value || '').toLowerCase().trim();
+      const cat = document.getElementById('ing-category-filter')?.value || 'all';
+      const status = document.getElementById('ing-status-filter')?.value || 'all';
+
+      const filtered = allIngredientsList.filter(item => {
+        const matchesQuery = item.name.toLowerCase().includes(q) || (item.supplier && item.supplier.toLowerCase().includes(q));
+        const matchesCat = cat === 'all' || item.category === cat;
+        let matchesStatus = true;
+        if (status === 'alert') {
+          matchesStatus = item.status === 'low' || item.status === 'out_of_stock';
+        } else if (status === 'safe') {
+          matchesStatus = item.status === 'safe';
+        }
+        return matchesQuery && matchesCat && matchesStatus;
+      });
+
+      renderIngredientsTable(filtered);
+    }
+
+    function renderIngredientsTable(items = []) {
+      const tbody = document.getElementById('ingredients-table-body');
+      if (!tbody) return;
+
+      if (items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-stone-400">Tidak ada bahan baku yang cocok dengan filter</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = items.map(item => {
+        let badgeHtml = '';
+        let pct = Math.min(100, Math.round((item.currentStock / (item.minStockAlert * 2 || 1)) * 100));
+        let barColor = 'bg-emerald-500';
+
+        if (item.status === 'out_of_stock') {
+          badgeHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">Habis (0)</span>`;
+          barColor = 'bg-rose-500';
+          pct = 0;
+        } else if (item.status === 'low') {
+          badgeHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">Menipis</span>`;
+          barColor = 'bg-amber-500';
+        } else {
+          badgeHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Aman</span>`;
+        }
+
+        return `
+          <tr class="hover:bg-stone-50 transition-colors">
+            <td class="py-3 px-4 sm:px-6">
+              <div class="font-bold text-[#2D1406]">${item.name}</div>
+              <span class="text-[10px] text-stone-400">ID: ${item.id}</span>
+            </td>
+            <td class="py-3 px-4">
+              <span class="text-xs text-stone-600 bg-stone-100 px-2.5 py-0.5 rounded-md font-medium">${item.category}</span>
+            </td>
+            <td class="py-3 px-4">
+              <div class="flex items-center gap-2">
+                <span class="font-mono font-bold text-stone-900 text-sm">${item.currentStock} ${item.unit}</span>
+                ${badgeHtml}
+              </div>
+              <div class="w-28 bg-stone-100 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                <div class="${barColor} h-full rounded-full transition-all" style="width: ${pct}%"></div>
+              </div>
+            </td>
+            <td class="py-3 px-4 text-center font-mono text-stone-500 font-semibold">${item.minStockAlert} ${item.unit}</td>
+            <td class="py-3 px-4 text-right font-mono text-stone-600">${formatRupiah(item.costPerUnit)} <span class="text-[10px] text-stone-400">/${item.unit}</span></td>
+            <td class="py-3 px-4 text-right font-mono font-bold text-[#2D1406]">${formatRupiah(item.valuation)}</td>
+            <td class="py-3 px-4">
+              <div class="font-medium text-stone-700">${item.supplier || '-'}</div>
+              <div class="text-[10px] text-stone-400">${item.lastRestock || 'Belum ada data'}</div>
+            </td>
+            <td class="py-3 px-4 text-center">
+              <div class="flex items-center justify-center gap-1.5">
+                <button onclick="openRestockModal('${item.id}')" 
+                        class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold flex items-center gap-1 transition-colors" title="Restock Belanja">
+                  <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
+                  <span>Restock</span>
+                </button>
+                <button onclick="openIngredientModal(true, '${item.id}')" 
+                        class="p-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 border border-stone-200 transition-colors" title="Edit Detail">
+                  <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                </button>
+                <button onclick="deleteIngredient('${item.id}')" 
+                        class="p-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors" title="Hapus">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function renderRecipeBOMCards() {
+      const grid = document.getElementById('recipe-cards-grid');
+      if (!grid) return;
+
+      if (!allMenuItemsList || allMenuItemsList.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full py-10 text-center text-stone-400 bg-stone-50 rounded-2xl border border-stone-200">
+            <p class="font-bold">Memuat daftar menu...</p>
+          </div>
+        `;
+        return;
+      }
+
+      const ingMap = {};
+      allIngredientsList.forEach(i => { ingMap[i.id] = i; });
+
+      grid.innerHTML = allMenuItemsList.map(menu => {
+        const recipe = allRecipesData[menu.id] || [];
+        let calculatedHpp = 0;
+        let maxPortions = 999999;
+        let bottleneckIng = null;
+
+        if (recipe.length > 0) {
+          recipe.forEach(r => {
+            const ing = ingMap[r.ingredientId];
+            if (ing) {
+              const cost = (r.amount || 0) * (ing.costPerUnit || 0);
+              calculatedHpp += cost;
+              const canMake = r.amount > 0 ? Math.floor(ing.currentStock / r.amount) : 999999;
+              if (canMake < maxPortions) {
+                maxPortions = canMake;
+                bottleneckIng = ing.name;
+              }
+            }
+          });
+        } else {
+          maxPortions = menu.stockQty || 0;
+        }
+
+        let portionBadgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+        if (maxPortions <= 0) {
+          portionBadgeClass = 'bg-rose-100 text-rose-800 border-rose-300 animate-pulse';
+        } else if (maxPortions <= 10) {
+          portionBadgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
+        }
+
+        return `
+          <div class="bg-stone-50/70 rounded-2xl p-4 border border-stone-200 flex flex-col justify-between hover:shadow-xs transition-shadow">
+            <div>
+              <div class="flex items-start justify-between gap-3 mb-2.5">
+                <div class="flex items-center gap-2.5">
+                  <img src="${menu.image}" class="w-11 h-11 rounded-xl object-cover border border-stone-200" onerror="this.src='./assets/logo-chewys-orange.png'">
+                  <div>
+                    <h4 class="font-extrabold text-stone-900 text-sm leading-tight">${menu.name}</h4>
+                    <span class="text-[11px] text-stone-500 font-mono font-semibold">${menu.price}</span>
+                  </div>
+                </div>
+                <span class="px-2 py-0.5 rounded-lg text-[10px] font-black border ${portionBadgeClass}">
+                  ${maxPortions <= 0 ? 'Habis (0 Porsi)' : `Bisa: ~${maxPortions} Porsi`}
+                </span>
+              </div>
+
+              <!-- Real Calculated HPP from Ingredients -->
+              <div class="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-xl bg-white border border-stone-200 mb-3">
+                <span class="text-stone-500 font-medium">HPP Riil Bahan:</span>
+                <span class="font-mono font-black text-emerald-700">${formatRupiah(Math.round(calculatedHpp))}</span>
+              </div>
+
+              <!-- Recipe ingredients list -->
+              <div class="space-y-1 text-[11px]">
+                <div class="text-[10px] uppercase font-bold text-stone-400 tracking-wider mb-1">Takaran Bahan per Porsi:</div>
+                ${recipe.length > 0 ? recipe.map(r => {
+                  const ing = ingMap[r.ingredientId];
+                  const ingName = ing ? ing.name : r.ingredientId;
+                  const ingUnit = ing ? ing.unit : r.unit;
+                  return `
+                    <div class="flex justify-between text-stone-600">
+                      <span class="truncate max-w-[160px]">• ${ingName}</span>
+                      <span class="font-mono font-bold text-stone-800">${r.amount} ${ingUnit}</span>
+                    </div>
+                  `;
+                }).join('') : '<div class="text-stone-400 italic">Belum ada rincian takaran resep</div>'}
+              </div>
+            </div>
+
+            ${bottleneckIng && maxPortions < 15 ? `
+              <div class="mt-3 pt-2 border-t border-stone-200 text-[10px] text-amber-700 flex items-center gap-1">
+                <i data-lucide="info" class="w-3 h-3 text-amber-500 shrink-0"></i>
+                <span class="truncate">Dibatasi oleh stok: <strong>${bottleneckIng}</strong></span>
+              </div>
+            ` : ''}
+
+            <div class="mt-3 pt-2.5 border-t border-stone-200">
+              <button onclick="openRecipeModal('${menu.id}')" 
+                      class="w-full py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-2xs">
+                <i data-lucide="pencil" class="w-3.5 h-3.5 text-amber-700"></i>
+                <span>Edit Menu & Resep</span>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    // Modal Restock
+    function openRestockModal(id) {
+      const item = allIngredientsList.find(i => i.id === id);
+      if (!item) return;
+
+      document.getElementById('restock-ing-id').value = item.id;
+      document.getElementById('restock-ing-name').textContent = item.name;
+      document.getElementById('restock-unit-badge').textContent = (item.unit || '').toUpperCase();
+      document.getElementById('restock-current-stock').textContent = `${item.currentStock} ${item.unit}`;
+      document.getElementById('restock-add-qty').value = '';
+      document.getElementById('restock-cost-input').value = item.costPerUnit || '';
+      document.getElementById('restock-supplier-input').value = item.supplier || '';
+      document.getElementById('restock-modal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('restock-add-qty').focus(), 50);
+    }
+
+    function closeRestockModal() {
+      document.getElementById('restock-modal').classList.add('hidden');
+    }
+
+    async function submitRestock(e) {
+      e.preventDefault();
+      const id = document.getElementById('restock-ing-id').value;
+      const addStock = parseFloat(document.getElementById('restock-add-qty').value);
+      const costPerUnit = parseFloat(document.getElementById('restock-cost-input').value) || undefined;
+      const supplier = document.getElementById('restock-supplier-input').value.trim() || undefined;
+
+      try {
+        const res = await fetch('/api/owner/ingredients/restock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, addStock, costPerUnit, supplier })
+        });
+        const data = await res.json();
+        if (data.success) {
+          closeRestockModal();
+          loadIngredients();
+        } else {
+          alert('Gagal restock: ' + (data.message || 'Error server'));
+        }
+      } catch (err) {
+        alert('Koneksi ke server gagal');
+      }
+    }
+
+    // Modal Add / Edit Ingredient
+    function openIngredientModal(isEdit = false, itemId = null) {
+      const modal = document.getElementById('ingredient-modal');
+      const title = document.getElementById('ing-modal-title');
+      const item = isEdit ? allIngredientsList.find(i => i.id === itemId) : null;
+      if (isEdit && item) {
+        title.textContent = 'Edit Bahan Baku';
+        document.getElementById('form-ing-id').value = item.id;
+        document.getElementById('form-ing-name').value = item.name;
+        document.getElementById('form-ing-category').value = item.category || 'Tepung & Bahan Pokok';
+        document.getElementById('form-ing-unit').value = item.unit || 'kg';
+        document.getElementById('form-ing-stock').value = item.currentStock;
+        document.getElementById('form-ing-min').value = item.minStockAlert;
+        document.getElementById('form-ing-cost').value = item.costPerUnit;
+        document.getElementById('form-ing-supplier').value = item.supplier || '';
+      } else {
+        title.textContent = 'Tambah Bahan Baku Baru';
+        document.getElementById('form-ing-id').value = '';
+        document.getElementById('form-ing-name').value = '';
+        document.getElementById('form-ing-category').value = 'Tepung & Bahan Pokok';
+        document.getElementById('form-ing-unit').value = 'kg';
+        document.getElementById('form-ing-stock').value = '10';
+        document.getElementById('form-ing-min').value = '3';
+        document.getElementById('form-ing-cost').value = '15000';
+        document.getElementById('form-ing-supplier').value = '';
+      }
+      modal.classList.remove('hidden');
+    }
+
+    function closeIngredientModal() {
+      document.getElementById('ingredient-modal').classList.add('hidden');
+    }
+
+    async function submitIngredientForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('form-ing-id').value;
+      const name = document.getElementById('form-ing-name').value.trim();
+      const category = document.getElementById('form-ing-category').value;
+      const unit = document.getElementById('form-ing-unit').value;
+      const currentStock = parseFloat(document.getElementById('form-ing-stock').value) || 0;
+      const minStockAlert = parseFloat(document.getElementById('form-ing-min').value) || 1;
+      const costPerUnit = parseFloat(document.getElementById('form-ing-cost').value) || 0;
+      const supplier = document.getElementById('form-ing-supplier').value.trim();
+
+      const endpoint = id ? '/api/owner/ingredients/update' : '/api/owner/ingredients/add';
+      const payload = { id, name, category, unit, currentStock, minStockAlert, costPerUnit, supplier };
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          closeIngredientModal();
+          loadIngredients();
+        } else {
+          alert('Gagal simpan bahan: ' + (data.message || 'Error server'));
+        }
+      } catch (err) {
+        alert('Koneksi ke server gagal');
+      }
+    }
+
+    async function deleteIngredient(id) {
+      const item = allIngredientsList.find(i => i.id === id);
+      const name = item ? item.name : 'bahan ini';
+      if (!confirm(`Yakin ingin menghapus bahan baku "${name}"?`)) return;
+
+      try {
+        const res = await fetch('/api/owner/ingredients/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (data.success) {
+          loadIngredients();
+        } else {
+          alert('Gagal hapus: ' + (data.message || 'Error server'));
+        }
+      } catch (err) {
+        alert('Koneksi ke server gagal');
+      }
+    }
+
+    function openFirstRecipeModal() {
+      if (allMenuItemsList && allMenuItemsList.length > 0) {
+        openRecipeModal(allMenuItemsList[0].id);
+      } else {
+        openCreateMenuModal();
+      }
+    }
+
+    // =========================================================================
+    // RECIPE & MENU EDITOR MODAL (BOM) LOGIC
+    // =========================================================================
+    let editingRecipeMenuId = null;
+    let editingRecipeRows = [];
+
+    function updateRecipeModalImgPreview(url) {
+      const imgEl = document.getElementById('recipe-modal-menu-img');
+      if (!imgEl) return;
+      imgEl.src = (url && url.trim()) ? url.trim() : './assets/logo-chewys-orange.png';
+    }
+
+    function openCreateMenuModal() {
+      editingRecipeMenuId = null;
+      document.getElementById('recipe-modal-is-new').value = 'true';
+      document.getElementById('recipe-modal-menu-id').value = '';
+      
+      document.getElementById('recipe-modal-title').textContent = 'Tambah Menu Baru & Racik Resep';
+      const badge = document.getElementById('recipe-modal-mode-badge');
+      if (badge) {
+        badge.textContent = 'Menu Baru';
+        badge.className = 'text-[10px] text-orange-700 font-bold bg-orange-100 px-2 py-0.5 rounded-md';
+      }
+      const submitBtnText = document.getElementById('recipe-modal-submit-btn-text');
+      if (submitBtnText) submitBtnText.textContent = 'Simpan & Tambahkan Menu';
+
+      document.getElementById('recipe-modal-name-input').value = '';
+      document.getElementById('recipe-modal-cat-input').value = 'bomboloni';
+      document.getElementById('recipe-modal-price-input').value = '25000';
+      document.getElementById('recipe-modal-img-input').value = '';
+      
+      const imgEl = document.getElementById('recipe-modal-menu-img');
+      if (imgEl) imgEl.src = './assets/logo-chewys-orange.png';
+
+      // Default 1 row
+      editingRecipeRows = [{
+        ingredientId: allIngredientsList[0]?.id || '',
+        amount: 0.05
+      }];
+
+      renderRecipeFormRows();
+      calculateRecipeModalTotals();
+      document.getElementById('recipe-modal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('recipe-modal-name-input').focus(), 60);
+    }
+
+    function openRecipeModal(menuId) {
+      editingRecipeMenuId = menuId;
+      const menu = allMenuItemsList.find(m => m.id === menuId);
+      if (!menu) return;
+
+      document.getElementById('recipe-modal-is-new').value = 'false';
+      document.getElementById('recipe-modal-menu-id').value = menuId;
+      document.getElementById('recipe-modal-title').textContent = 'Edit Menu & Racik Resep';
+      const badge = document.getElementById('recipe-modal-mode-badge');
+      if (badge) {
+        badge.textContent = 'Edit Menu';
+        badge.className = 'text-[10px] text-stone-500 font-semibold bg-stone-100 px-2 py-0.5 rounded-md';
+      }
+      const submitBtnText = document.getElementById('recipe-modal-submit-btn-text');
+      if (submitBtnText) submitBtnText.textContent = 'Simpan Perubahan Menu & Resep';
+
+      document.getElementById('recipe-modal-name-input').value = menu.name || '';
+      document.getElementById('recipe-modal-cat-input').value = menu.category || 'bomboloni';
+      
+      const numericPrice = Number(String(menu.price || 0).replace(/[^0-9]/g, '')) || 0;
+      document.getElementById('recipe-modal-price-input').value = numericPrice;
+      document.getElementById('recipe-modal-img-input').value = menu.image || '';
+      
+      const imgEl = document.getElementById('recipe-modal-menu-img');
+      if (imgEl) imgEl.src = menu.image || './assets/logo-chewys-orange.png';
+
+      // Load existing recipe rows
+      const existing = allRecipesData[menuId] || [];
+      if (existing.length > 0) {
+        editingRecipeRows = existing.map(r => ({
+          ingredientId: r.ingredientId,
+          amount: r.amount
+        }));
+      } else {
+        // Start with 1 default row if no recipe yet
+        editingRecipeRows = [{
+          ingredientId: allIngredientsList[0]?.id || '',
+          amount: 0.05
+        }];
+      }
+
+      renderRecipeFormRows();
+      calculateRecipeModalTotals();
+      document.getElementById('recipe-modal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('recipe-modal-name-input').focus(), 60);
+    }
+
+    function closeRecipeModal() {
+      document.getElementById('recipe-modal').classList.add('hidden');
+    }
+
+    function renderRecipeFormRows() {
+      const container = document.getElementById('recipe-rows-container');
+      if (!container) return;
+
+      if (editingRecipeRows.length === 0) {
+        container.innerHTML = `
+          <div class="p-6 rounded-2xl border-2 border-dashed border-stone-200 text-center text-stone-400">
+            Belum ada bahan dalam resep ini. Klik tombol "+ Tambah Baris Bahan" di atas untuk menambahkan.
+          </div>
+        `;
+        calculateRecipeModalTotals();
+        return;
+      }
+
+      const ingMap = {};
+      allIngredientsList.forEach(i => { ingMap[i.id] = i; });
+
+      container.innerHTML = editingRecipeRows.map((row, idx) => {
+        const selectedIng = ingMap[row.ingredientId] || allIngredientsList[0];
+        const unit = selectedIng ? selectedIng.unit : 'kg';
+        const costPerUnit = selectedIng ? (Number(selectedIng.costPerUnit) || 0) : 0;
+        const rowCost = Math.round((Number(row.amount) || 0) * costPerUnit);
+
+        const optionsHtml = allIngredientsList.map(ing => `
+          <option value="${ing.id}" ${ing.id === row.ingredientId ? 'selected' : ''}>
+            ${ing.name} (${formatRupiah(ing.costPerUnit)}/${ing.unit})
+          </option>
+        `).join('');
+
+        return `
+          <div class="flex items-center gap-2 bg-stone-50 p-2.5 rounded-2xl border border-stone-200 hover:border-stone-300 transition-colors">
+            <!-- Ingredient selector -->
+            <div class="flex-1 min-w-0">
+              <select onchange="updateRecipeRow(${idx}, 'ingredientId', this.value)" 
+                      class="w-full py-1.5 px-2.5 rounded-xl border border-stone-300 bg-white font-medium text-xs focus:border-bakery-orange focus:outline-none">
+                ${optionsHtml}
+              </select>
+            </div>
+
+            <!-- Amount input with unit badge -->
+            <div class="relative w-32 shrink-0">
+              <input type="number" step="any" min="0.0001" value="${row.amount}" 
+                     oninput="updateRecipeRow(${idx}, 'amount', this.value)" 
+                     placeholder="0"
+                     class="w-full pl-2.5 pr-12 py-1.5 font-mono font-bold text-xs rounded-xl border border-stone-300 bg-white focus:border-bakery-orange focus:outline-none">
+              <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-stone-400 uppercase">${unit}</span>
+            </div>
+
+            <!-- Subtotal cost preview for this row -->
+            <div class="w-24 text-right font-mono font-bold text-stone-700 text-xs shrink-0" title="Biaya per porsi">
+              ${formatRupiah(rowCost)}
+            </div>
+
+            <!-- Delete button -->
+            <button type="button" onclick="removeRecipeRow(${idx})" class="p-1.5 text-stone-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors shrink-0" title="Hapus bahan ini">
+              <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+      calculateRecipeModalTotals();
+    }
+
+    function addRecipeIngredientRow() {
+      const defaultId = allIngredientsList[0]?.id || '';
+      editingRecipeRows.push({
+        ingredientId: defaultId,
+        amount: 0.05
+      });
+      renderRecipeFormRows();
+    }
+
+    function removeRecipeRow(idx) {
+      editingRecipeRows.splice(idx, 1);
+      renderRecipeFormRows();
+    }
+
+    function updateRecipeRow(idx, field, value) {
+      if (!editingRecipeRows[idx]) return;
+      if (field === 'amount') {
+        editingRecipeRows[idx].amount = parseFloat(value) || 0;
+      } else if (field === 'ingredientId') {
+        editingRecipeRows[idx].ingredientId = value;
+      }
+      renderRecipeFormRows();
+    }
+
+    function calculateRecipeModalTotals() {
+      const isNew = document.getElementById('recipe-modal-is-new')?.value === 'true';
+      const menu = !isNew ? allMenuItemsList.find(m => m.id === editingRecipeMenuId) : null;
+
+      const rawPrice = document.getElementById('recipe-modal-price-input')?.value;
+      const sellingPrice = Number(String(rawPrice || (menu ? menu.price : 0)).replace(/[^0-9]/g, '')) || 0;
+
+      const previewPriceEl = document.getElementById('recipe-modal-price-preview');
+      if (previewPriceEl) {
+        previewPriceEl.textContent = formatRupiah(sellingPrice);
+      }
+
+      const ingMap = {};
+      allIngredientsList.forEach(i => { ingMap[i.id] = i; });
+
+      let totalHpp = 0;
+      editingRecipeRows.forEach(row => {
+        const ing = ingMap[row.ingredientId];
+        if (ing) {
+          totalHpp += ((Number(row.amount) || 0) * (Number(ing.costPerUnit) || 0));
+        }
+      });
+
+      const profit = Math.max(0, sellingPrice - totalHpp);
+      const marginPct = sellingPrice > 0 ? Math.round((profit / sellingPrice) * 100) : 0;
+
+      const hppEl = document.getElementById('recipe-modal-calculated-hpp');
+      if (hppEl) hppEl.textContent = formatRupiah(Math.round(totalHpp));
+
+      const marginEl = document.getElementById('recipe-modal-margin');
+      if (marginEl) {
+        marginEl.textContent = `${marginPct}% (Laba Bersih: ${formatRupiah(Math.round(profit))})`;
+      }
+    }
+
+    async function submitRecipeForm(e) {
+      e.preventDefault();
+      const isNew = document.getElementById('recipe-modal-is-new').value === 'true';
+      const menuId = document.getElementById('recipe-modal-menu-id').value;
+      const name = document.getElementById('recipe-modal-name-input').value.trim();
+      const category = document.getElementById('recipe-modal-cat-input').value;
+      const priceNum = parseFloat(document.getElementById('recipe-modal-price-input').value) || 0;
+      const image = document.getElementById('recipe-modal-img-input').value.trim();
+
+      if (!name) {
+        alert('Nama menu wajib diisi');
+        return;
+      }
+
+      const formattedPrice = `Rp ${priceNum.toLocaleString('id-ID')}`;
+
+      try {
+        const res = await fetch('/api/owner/recipes/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            menuId: isNew ? undefined : menuId,
+            name,
+            category,
+            price: formattedPrice,
+            image: image || undefined,
+            isNew,
+            items: editingRecipeRows
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          closeRecipeModal();
+          await loadIngredients();
+          if (typeof loadAnalytics === 'function') {
+            loadAnalytics();
+          }
+        } else {
+          alert('Gagal simpan: ' + (data.message || 'Error server'));
+        }
+      } catch (err) {
+        alert('Koneksi ke server gagal');
+      }
+    }
+
+    // =========================================================================
+    // WASTE & SPOILAGE TRACKING LOGIC
+    // =========================================================================
+    function openWasteModal(prefillIngId = null) {
+      const select = document.getElementById('waste-ing-select');
+      if (!select) return;
+
+      if (!allIngredientsList || allIngredientsList.length === 0) {
+        alert('Data bahan baku belum siap.');
+        return;
+      }
+
+      select.innerHTML = allIngredientsList.map(ing => `
+        <option value="${ing.id}" ${ing.id === prefillIngId ? 'selected' : ''}>
+          ${ing.name} (${ing.currentStock} ${ing.unit} tersedia)
+        </option>
+      `).join('');
+
+      document.getElementById('waste-qty-input').value = '';
+      document.getElementById('waste-note-input').value = '';
+      document.getElementById('waste-reason-select').selectedIndex = 0;
+      
+      onWasteIngChange();
+      document.getElementById('waste-modal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('waste-qty-input').focus(), 60);
+    }
+
+    function closeWasteModal() {
+      document.getElementById('waste-modal').classList.add('hidden');
+    }
+
+    function onWasteIngChange() {
+      const select = document.getElementById('waste-ing-select');
+      const selectedId = select?.value;
+      const ing = allIngredientsList.find(i => i.id === selectedId);
+
+      const stockInfo = document.getElementById('waste-current-stock-info');
+      const unitBadge = document.getElementById('waste-unit-badge');
+
+      if (ing) {
+        if (stockInfo) stockInfo.textContent = `Sisa stok fisik di gudang: ${ing.currentStock} ${ing.unit} (HPP: ${formatRupiah(ing.costPerUnit)}/${ing.unit})`;
+        if (unitBadge) unitBadge.textContent = ing.unit.toUpperCase();
+      }
+      calculateWasteLossPreview();
+    }
+
+    function calculateWasteLossPreview() {
+      const select = document.getElementById('waste-ing-select');
+      const selectedId = select?.value;
+      const ing = allIngredientsList.find(i => i.id === selectedId);
+      const qty = parseFloat(document.getElementById('waste-qty-input')?.value) || 0;
+
+      const lossPreview = document.getElementById('waste-loss-preview');
+      if (!ing || qty <= 0) {
+        if (lossPreview) lossPreview.textContent = 'Rp 0';
+        return;
+      }
+
+      const totalLoss = Math.round(qty * (Number(ing.costPerUnit) || 0));
+      if (lossPreview) lossPreview.textContent = formatRupiah(totalLoss);
+    }
+
+    async function submitWasteRecord(e) {
+      e.preventDefault();
+      const ingredientId = document.getElementById('waste-ing-select').value;
+      const qty = parseFloat(document.getElementById('waste-qty-input').value);
+      const reason = document.getElementById('waste-reason-select').value;
+      const note = document.getElementById('waste-note-input').value.trim();
+      const reportedBy = document.getElementById('waste-reporter-input').value.trim();
+
+      if (!ingredientId || isNaN(qty) || qty <= 0) {
+        alert('Masukkan jumlah terbuang yang valid!');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/owner/ingredients/waste', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ingredientId, qty, reason, note, reportedBy })
+        });
+        const data = await res.json();
+        if (data.success) {
+          closeWasteModal();
+          await loadIngredients();
+        } else {
+          alert('Gagal simpan waste: ' + (data.message || 'Error server'));
+        }
+      } catch (err) {
+        alert('Koneksi ke server gagal');
+      }
+    }
+
+    async function deleteWasteRecord(id) {
+      if (!confirm('Hapus catatan bahan rusak ini dari rekapan?')) return;
+      try {
+        const res = await fetch('/api/owner/ingredients/waste/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (data.success) {
+          loadIngredients();
+        } else {
+          alert('Gagal: ' + (data.message || 'Error server'));
+        }
+      } catch (err) {
+        alert('Koneksi ke server gagal');
+      }
+    }
+
+    function renderWasteTable() {
+      const tbody = document.getElementById('waste-table-body');
+      if (!tbody) return;
+
+      if (!allWasteLogs || allWasteLogs.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="py-8 text-center text-stone-400">
+              <div class="flex flex-col items-center justify-center gap-1.5">
+                <i data-lucide="check-circle-2" class="w-6 h-6 text-emerald-500"></i>
+                <span class="font-bold text-stone-600">Belum ada catatan bahan terbuang (Zero Waste)</span>
+                <span class="text-[11px] text-stone-400">Gunakan tombol "+ Catat Waste" jika ada adonan gagal atau bahan expired</span>
+              </div>
+            </td>
+          </tr>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      tbody.innerHTML = allWasteLogs.map(w => {
+        const dateStr = w.timestamp ? new Date(w.timestamp).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+        return `
+          <tr class="hover:bg-rose-50/40 transition-colors">
+            <td class="py-3 px-4 sm:px-6 font-mono text-[11px] text-stone-600">${dateStr}</td>
+            <td class="py-3 px-4 font-bold text-stone-900">${w.ingredientName || w.ingredientId}</td>
+            <td class="py-3 px-4 font-mono font-bold text-rose-700">${w.qty} ${w.unit}</td>
+            <td class="py-3 px-4">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                ${w.reason || 'Rusak'}
+              </span>
+            </td>
+            <td class="py-3 px-4 text-right font-mono font-black text-rose-700">${formatRupiah(w.totalLoss || 0)}</td>
+            <td class="py-3 px-4 text-stone-500 italic max-w-xs truncate">${w.note || '-'}</td>
+            <td class="py-3 px-4 text-stone-700 font-medium">${w.reportedBy || 'Staff Dapur'}</td>
+            <td class="py-3 px-4 text-center">
+              <button onclick="deleteWasteRecord('${w.id}')" class="p-1 rounded-lg hover:bg-rose-100 text-stone-400 hover:text-rose-600 transition-colors" title="Hapus catatan">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    // =========================================================================
+    // STOCK MOVEMENT AUDIT TRAIL LOGIC
+    // =========================================================================
+    function populateStockLogFilterOptions() {
+      const select = document.getElementById('stock-log-filter-ing');
+      if (!select) return;
+
+      const currentVal = select.value;
+      select.innerHTML = '<option value="all">Semua Bahan Baku</option>' + 
+        allIngredientsList.map(i => `<option value="${i.id}" ${i.id === currentVal ? 'selected' : ''}>${i.name}</option>`).join('');
+    }
+
+    function renderStockLogsTable() {
+      const tbody = document.getElementById('stock-logs-table-body');
+      if (!tbody) return;
+
+      const typeFilter = document.getElementById('stock-log-filter-type')?.value || 'all';
+      const ingFilter = document.getElementById('stock-log-filter-ing')?.value || 'all';
+
+      let filtered = (allStockLogs || []);
+
+      if (typeFilter !== 'all') {
+        filtered = filtered.filter(l => l.type === typeFilter);
+      }
+      if (ingFilter !== 'all') {
+        filtered = filtered.filter(l => l.ingredientId === ingFilter);
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="py-8 text-center text-stone-400">
+              Belum ada mutasi stok yang sesuai dengan filter yang dipilih.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(log => {
+        const dateStr = log.timestamp ? new Date(log.timestamp).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+        
+        let typeBadge = '';
+        let qtyClass = '';
+        let qtyPrefix = '';
+
+        if (log.type === 'IN_RESTOCK') {
+          typeBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">📥 Masuk (Restock)</span>';
+          qtyClass = 'text-emerald-700 font-bold';
+          qtyPrefix = '+';
+        } else if (log.type === 'OUT_SALE') {
+          typeBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">🛒 Keluar (Kasir POS)</span>';
+          qtyClass = 'text-blue-700 font-bold';
+          qtyPrefix = '';
+        } else if (log.type === 'OUT_WASTE') {
+          typeBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">🗑️ Keluar (Waste)</span>';
+          qtyClass = 'text-rose-700 font-bold';
+          qtyPrefix = '';
+        } else {
+          typeBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-700 border border-stone-200">${log.type}</span>`;
+          qtyClass = 'text-stone-700 font-bold';
+        }
+
+        return `
+          <tr class="hover:bg-stone-50 transition-colors">
+            <td class="py-2.5 px-4 sm:px-6 font-mono text-[11px] text-stone-500">${dateStr}</td>
+            <td class="py-2.5 px-4 font-bold text-stone-900">${log.ingredientName || log.ingredientId}</td>
+            <td class="py-2.5 px-4 text-center">${typeBadge}</td>
+            <td class="py-2.5 px-4 text-right font-mono ${qtyClass}">${qtyPrefix}${log.changeQty} ${log.unit || ''}</td>
+            <td class="py-2.5 px-4 text-right font-mono font-bold text-stone-800">${log.balanceQty !== undefined ? `${log.balanceQty} ${log.unit || ''}` : '-'}</td>
+            <td class="py-2.5 px-4 text-stone-600 font-medium">${log.reference || '-'}</td>
+            <td class="py-2.5 px-4 text-stone-500 italic max-w-xs truncate">${log.note || '-'}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // EXPORT DATA (EXCEL / CSV) UTILITIES
+    // =========================================================================
+    function downloadCSVFile(filename, csvContent) {
+      // Prepend BOM for Indonesian UTF-8 in Excel
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function exportIngredientsCSV() {
+      if (!allIngredientsList || allIngredientsList.length === 0) {
+        alert('Data bahan baku belum tersedia untuk diexport.');
+        return;
+      }
+      const headers = ['ID Bahan', 'Nama Bahan Baku', 'Kategori', 'Sisa Stok', 'Satuan', 'Batas Min Alert', 'Harga Beli Satuan (Rp)', 'Total Valuasi Aset (Rp)', 'Supplier', 'Terakhir Restock', 'Status'];
+      const rows = allIngredientsList.map(i => [
+        `"${i.id}"`,
+        `"${i.name.replace(/"/g, '""')}"`,
+        `"${i.category || ''}"`,
+        i.currentStock,
+        `"${i.unit}"`,
+        i.minStockAlert,
+        i.costPerUnit,
+        i.valuation,
+        `"${(i.supplier || '').replace(/"/g, '""')}"`,
+        `"${i.lastRestock || '-'}"`,
+        `"${i.status}"`
+      ]);
+
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+      const today = new Date().toISOString().slice(0, 10);
+      downloadCSVFile(`chewys-stok-bahan-baku-${today}.csv`, csv);
+    }
+
+    function exportWasteCSV() {
+      if (!allWasteLogs || allWasteLogs.length === 0) {
+        alert('Belum ada data bahan rusak / waste untuk diexport.');
+        return;
+      }
+      const headers = ['ID Waste', 'Waktu Kejadian', 'Nama Bahan', 'Jumlah Terbuang', 'Satuan', 'Harga Satuan (Rp)', 'Total Kerugian (Rp)', 'Alasan Terbuang', 'Keterangan', 'Pelapor'];
+      const rows = allWasteLogs.map(w => [
+        `"${w.id}"`,
+        `"${w.timestamp ? new Date(w.timestamp).toLocaleString('id-ID') : '-'}"`,
+        `"${(w.ingredientName || w.ingredientId).replace(/"/g, '""')}"`,
+        w.qty,
+        `"${w.unit || ''}"`,
+        w.costPerUnit || 0,
+        w.totalLoss || 0,
+        `"${(w.reason || '').replace(/"/g, '""')}"`,
+        `"${(w.note || '').replace(/"/g, '""')}"`,
+        `"${(w.reportedBy || '').replace(/"/g, '""')}"`
+      ]);
+
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+      const today = new Date().toISOString().slice(0, 10);
+      downloadCSVFile(`chewys-laporan-waste-kerugian-${today}.csv`, csv);
+    }
+
+    function exportStockLogsCSV() {
+      if (!allStockLogs || allStockLogs.length === 0) {
+        alert('Belum ada data mutasi stok untuk diexport.');
+        return;
+      }
+      const headers = ['ID Log', 'Waktu Mutasi', 'Nama Bahan', 'Tipe Mutasi', 'Perubahan Qty', 'Sisa Stok Akhir', 'Satuan', 'No Referensi', 'Keterangan'];
+      const rows = allStockLogs.map(l => [
+        `"${l.id}"`,
+        `"${l.timestamp ? new Date(l.timestamp).toLocaleString('id-ID') : '-'}"`,
+        `"${(l.ingredientName || l.ingredientId).replace(/"/g, '""')}"`,
+        `"${l.type}"`,
+        l.changeQty,
+        l.balanceQty !== undefined ? l.balanceQty : '',
+        `"${l.unit || ''}"`,
+        `"${(l.reference || '').replace(/"/g, '""')}"`,
+        `"${(l.note || '').replace(/"/g, '""')}"`
+      ]);
+
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+      const today = new Date().toISOString().slice(0, 10);
+      downloadCSVFile(`chewys-kartu-mutasi-stok-${today}.csv`, csv);
+    }
+
+    // Initialize
+    window.addEventListener('DOMContentLoaded', checkOwnerAuth);
+  </script>
+</body>
+</html>

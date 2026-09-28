@@ -1,0 +1,303 @@
+{
+  "orders": [
+    {
+      "id": "CWY-20260929-0004",
+      "createdAt": "2026-09-28T22:51:58.966Z",
+      "orderType": "takeaway",
+      "tableOrCustomer": "Pelanggan Walk-in",
+      "items": [
+        {
+          "id": "brulee-baby",
+          "name": "Brulee Baby",
+          "price": 28000,
+          "qty": 2
+        }
+      ],
+      "subtotal": 56000,
+      "discount": 0,
+      "tax": 0,
+      "total": 56000,
+      "paymentMethod": "qris",
+      "cashPaid": 56000,
+      "cashChange": 0,
+      "paymentReference": "",
+      "cashier": "Kasir 1",
+      "status": "completed"
+    },
+    {
+      "id": "CWY-20260929-0003",
+      "createdAt": "2026-09-28T21:36:50.071Z",
+      "orderType": "dine-in",
+      "tableOrCustomer": "Meja Walk-in",
+      "items": [
+        {
+          "id": "brookie-signature",
+          "name": "The Original Brookie",
+          "price": 35000,
+          "qty": 1,
+          "note": ""
+        },
+        {
+          "id": "og-chewy-cookie",
+          "name": "OG Choc Chip Cookie",
+          "price": 25000,
+          "qty": 1,
+          "note": ""
+        },
+        {
+          "id": "lotus-biscoff-brownie",
+          "name": "Lotus Biscoff Brownie",
+          "price": 36000,
+          "qty": 1,
+          "note": ""
+        }
+      ],
+      "subtotal": 96000,
+      "discount": 0,
+      "tax": 0,
+      "total": 96000,
+      "paymentMethod": "cash",
+      "cashPaid": 96000,
+      "cashChange": 0,
+      "paymentReference": "",
+      "cashier": "Kasir 1",
+      "status": "completed"
+    },
+    {
+      "id": "CWY-20260929-0002",
+      "createdAt": "2026-09-28T21:29:46.025Z",
+      "orderType": "takeaway",
+      "tableOrCustomer": "Pelanggan Walk-in",
+      "items": [
+        {
+          "id": "og-chewy-cookie",
+          "name": "OG Choc Chip Cookie",
+          "price": 25000,
+          "qty": 2
+        }
+      ],
+      "subtotal": 50000,
+      "discount": 0,
+      "tax": 0,
+      "total": 50000,
+      "paymentMethod": "cash",
+      "cashPaid": 50000,
+      "cashChange": 0,
+      "paymentReference": "",
+      "cashier": "Kasir 1",
+      "status": "completed"
+    },
+    {
+      "id": "CWY-20260929-0001",
+      "createdAt": "2026-09-28T21:29:41.233Z",
+      "orderType": "takeaway",
+      "tableOrCustomer": "Pelanggan Walk-in",
+      "items": [
+        {
+          "price": 25000,
+          "name": "OG Choc Chip Cookie",
+          "id": "og-chewy-cookie",
+          "qty": 2
+        }
+      ],
+      "subtotal": 50000,
+      "discount": 0,
+      "tax": 0,
+      "total": 50000,
+      "paymentMethod": "cash",
+      "cashPaid": 50000,
+      "cashChange": 0,
+      "paymentReference": "",
+      "cashier": "Kasir 1",
+      "status": "completed"
+    },
+    {
+      "id": "CWY-20260928-0005",
+      "createdAt": "2026-09-28T21:05:05.588Z",
+      "orderType": "dine-in",
+      "tableOrCustomer": "Meja Walk-in",
+      "items": [
+        {
+          "id": "kyoto-kiss",
+          "name": "Kyoto Kiss Bomboloni",
+          "price": 30000,
+          "qty": 1,
+          "note": ""
+        },
+        {
+          "id": "og-chewy-cookie",
+          "name": "OG Choc Chip Cookie",
+          "price": 25000,
+          "qty": 1,
+          "note": ""
+        }
+      ],
+      "subtotal": 55000,
+      "discount": 0,
+      "tax": 0,
+      "total": 55000,
+      "paymentMethod": "cash",
+      "cashPaid": 55000,
+      "cashChange": 0,
+      "paymentReference": "",
+      "cashier": "Kasir 1",
+      "status": "completed"
+    },
+    {
+      "id": "CWY-20260928-0004",
+      "createdAt": "2026-09-28T21:02:07.020Z",
+      "orderType": "delivery",
+      "tableOrCustomer": "Pelanggan Walk-in",
+      "items": [
+        {
+          "id": "kyoto-kiss",
+          "name": "Kyoto Kiss Bomboloni",
+          "price": 30000,
+          "qty": 1,
+          "note": ""
+        },
+        {
+          "id": "og-chewy-cookie",
+          "name": "OG Choc Chip Cookie",
+          "price": 25000,
+          "qty": 2,
+          "note": ""
+        },
+        {
+          "id": "lotus-biscoff-brownie",
+          "name": "Lotus Biscoff Brownie",
+          "price": 36000,
+          "qty": 1,
+          "note": ""
+        }
+      ],
+      "subtotal": 116000,
+      "discount": 0,
+      "tax": 0,
+      "total": 116000,
+      "paymentMethod": "qris",
+      "cashPaid": 116000,
+      "cashChange": 0,
+      "paymentReference": "",
+      "cashier": "Kasir 1",
+      "status": "completed"
+    },
+    {
+      "id": "CWY-20260928-0003",
+      "createdAt": "2026-09-28T20:58:50.957Z",
+      "orderType": "takeaway",
+      "tableOrCustomer": "Pelanggan Walk-in",
+      "items": [
+        {
+          "id": "og-fudge-brownie",
+          "name": "OG Fudgy Brownie",
+          "price": 32000,
+          "qty": 1,
+          "note": ""
+        },
+        {
+          "id": "lotus-biscoff-brownie",
+          "name": "Lotus Biscoff Brownie",
+          "price": 36000,
+          "qty": 1,
+          "note": ""
+        },
+        {
+          "id": "kyoto-kiss",
+          "name": "Kyoto Kiss Bomboloni",
+          "price": 30000,
+          "qty": 1,
+          "note": ""
+        },
+        {
+          "id": "og-chewy-cookie",
+          "name": "OG Choc Chip Cookie",
+          "price": 25000,
+          "qty": 1,
+          "note": ""
+        }
+      ],
+      "subtotal": 123000,
+      "discount": 0,
+      "tax": 0,
+      "total": 123000,
+      "paymentMethod": "cash",
+      "cashPaid": 123000,
+      "cashChange": 0,
+      "paymentReference": "",
+      "cashier": "Kasir 1",
+      "status": "completed"
+    },
+    {
+      "id": "CWY-20260928-0002",
+      "createdAt": "2026-09-28T20:34:54.419Z",
+      "orderType": "dine-in",
+      "tableOrCustomer": "Meja Walk-in",
+      "items": [
+        {
+          "id": "og-fudge-brownie",
+          "name": "OG Fudgy Brownie",
+          "price": 32000,
+          "qty": 1,
+          "note": ""
+        },
+        {
+          "id": "lotus-biscoff-brownie",
+          "name": "Lotus Biscoff Brownie",
+          "price": 36000,
+          "qty": 1,
+          "note": ""
+        },
+        {
+          "id": "kyoto-kiss",
+          "name": "Kyoto Kiss Bomboloni",
+          "price": 30000,
+          "qty": 1,
+          "note": ""
+        }
+      ],
+      "subtotal": 98000,
+      "discount": 0,
+      "tax": 0,
+      "total": 98000,
+      "paymentMethod": "cash",
+      "cashPaid": 98000,
+      "cashChange": 0,
+      "paymentReference": "",
+      "cashier": "Kasir 1",
+      "status": "completed"
+    },
+    {
+      "id": "CWY-20260928-0001",
+      "createdAt": "2026-09-28T20:25:22.651Z",
+      "orderType": "dine-in",
+      "tableOrCustomer": "Meja Walk-in",
+      "items": [
+        {
+          "id": "og-fudge-brownie",
+          "name": "OG Fudgy Brownie",
+          "price": 32000,
+          "qty": 1,
+          "note": ""
+        },
+        {
+          "id": "lotus-biscoff-brownie",
+          "name": "Lotus Biscoff Brownie",
+          "price": 36000,
+          "qty": 1,
+          "note": ""
+        }
+      ],
+      "subtotal": 68000,
+      "discount": 0,
+      "tax": 0,
+      "total": 68000,
+      "paymentMethod": "cash",
+      "cashPaid": 68000,
+      "cashChange": 0,
+      "paymentReference": "",
+      "cashier": "Kasir 1",
+      "status": "completed"
+    }
+  ]
+}

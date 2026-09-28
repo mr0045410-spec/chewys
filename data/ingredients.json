@@ -1,0 +1,577 @@
+{
+  "ingredients": [
+    {
+      "id": "ing-terigu",
+      "name": "Tepung Cakra Kembar Emas",
+      "category": "Tepung & Bahan Pokok",
+      "unit": "kg",
+      "currentStock": 43.06,
+      "minStockAlert": 8,
+      "costPerUnit": 14500,
+      "supplier": "Bogasari Official",
+      "lastRestock": "29/09/2026 05:51:48"
+    },
+    {
+      "id": "ing-butter",
+      "name": "Anchor Butter Unsalted",
+      "category": "Dairy & Lemak",
+      "unit": "kg",
+      "currentStock": 13.62,
+      "minStockAlert": 4,
+      "costPerUnit": 125000,
+      "supplier": "Fonterra Dairy"
+    },
+    {
+      "id": "ing-gula",
+      "name": "Gula Pasir Halus Premium",
+      "category": "Tepung & Bahan Pokok",
+      "unit": "kg",
+      "currentStock": 21.92,
+      "minStockAlert": 5,
+      "costPerUnit": 17500,
+      "supplier": "Gulaku"
+    },
+    {
+      "id": "ing-callebaut",
+      "name": "Callebaut Dark Couverture 70.5%",
+      "category": "Coklat & Topping",
+      "unit": "kg",
+      "currentStock": 7.2,
+      "minStockAlert": 2.5,
+      "costPerUnit": 225000,
+      "supplier": "Sukanda Djaya"
+    },
+    {
+      "id": "ing-matcha",
+      "name": "Uji Ceremonial Matcha Powder",
+      "category": "Coklat & Topping",
+      "unit": "kg",
+      "currentStock": 2.8,
+      "minStockAlert": 1,
+      "costPerUnit": 480000,
+      "supplier": "Kyoto Tea Import"
+    },
+    {
+      "id": "ing-milk",
+      "name": "Fresh Milk Pasteurisasi",
+      "category": "Dairy & Lemak",
+      "unit": "liter",
+      "currentStock": 18.5,
+      "minStockAlert": 6,
+      "costPerUnit": 23000,
+      "supplier": "Greenfields Dairy"
+    },
+    {
+      "id": "ing-kopi",
+      "name": "Biji Kopi Arabika Kintamani",
+      "category": "Kopi & Minuman",
+      "unit": "kg",
+      "currentStock": 9.2,
+      "minStockAlert": 3,
+      "costPerUnit": 185000,
+      "supplier": "Chewy's Roastery"
+    },
+    {
+      "id": "ing-gula-aren",
+      "name": "Gula Aren Cair Organik",
+      "category": "Kopi & Minuman",
+      "unit": "liter",
+      "currentStock": 8,
+      "minStockAlert": 2.5,
+      "costPerUnit": 42000,
+      "supplier": "Petani Aren Lebak"
+    },
+    {
+      "id": "ing-biscoff",
+      "name": "Lotus Biscoff Spread Creamy",
+      "category": "Coklat & Topping",
+      "unit": "kg",
+      "currentStock": 5.465,
+      "minStockAlert": 2,
+      "costPerUnit": 140000,
+      "supplier": "Lotus Bakery Indo"
+    },
+    {
+      "id": "ing-vanilla-bean",
+      "name": "Madagascar Vanilla Bean Paste",
+      "category": "Tepung & Bahan Pokok",
+      "unit": "kg",
+      "currentStock": 1.198,
+      "minStockAlert": 0.5,
+      "costPerUnit": 650000,
+      "supplier": "Vanilla House"
+    },
+    {
+      "id": "ing-box-bakery",
+      "name": "Box Kraft Chewy's Signature",
+      "category": "Packaging & Kemasan",
+      "unit": "pcs",
+      "currentStock": 136,
+      "minStockAlert": 50,
+      "costPerUnit": 2200,
+      "supplier": "Mitra Kemasan"
+    },
+    {
+      "id": "ing-cup-cold",
+      "name": "Cold Cup 16oz + Straw Lid",
+      "category": "Packaging & Kemasan",
+      "unit": "pcs",
+      "currentStock": 210,
+      "minStockAlert": 60,
+      "costPerUnit": 1250,
+      "supplier": "Mitra Kemasan"
+    }
+  ],
+  "recipes": {
+    "brulee-baby": [
+      {
+        "ingredientId": "ing-terigu",
+        "amount": 0.055,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-butter",
+        "amount": 0.02,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-gula",
+        "amount": 0.025,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-vanilla-bean",
+        "amount": 0.001,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-box-bakery",
+        "amount": 1,
+        "unit": "pcs"
+      }
+    ],
+    "brookie-signature": [
+      {
+        "ingredientId": "ing-terigu",
+        "amount": 0.06,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-butter",
+        "amount": 0.035,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-callebaut",
+        "amount": 0.04,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-gula",
+        "amount": 0.03,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-box-bakery",
+        "amount": 1,
+        "unit": "pcs"
+      }
+    ],
+    "og-fudge-brownie": [
+      {
+        "ingredientId": "ing-terigu",
+        "amount": 0.045,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-butter",
+        "amount": 0.035,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-callebaut",
+        "amount": 0.05,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-box-bakery",
+        "amount": 1,
+        "unit": "pcs"
+      }
+    ],
+    "kyoto-kiss": [
+      {
+        "ingredientId": "ing-terigu",
+        "amount": 0.055,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-butter",
+        "amount": 0.02,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-matcha",
+        "amount": 0.012,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-milk",
+        "amount": 0.05,
+        "unit": "liter"
+      },
+      {
+        "ingredientId": "ing-box-bakery",
+        "amount": 1,
+        "unit": "pcs"
+      }
+    ],
+    "bloom-berry": [
+      {
+        "ingredientId": "ing-terigu",
+        "amount": 0.055,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-butter",
+        "amount": 0.02,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-gula",
+        "amount": 0.025,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-box-bakery",
+        "amount": 1,
+        "unit": "pcs"
+      }
+    ],
+    "smore-love": [
+      {
+        "ingredientId": "ing-terigu",
+        "amount": 0.055,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-callebaut",
+        "amount": 0.03,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-box-bakery",
+        "amount": 1,
+        "unit": "pcs"
+      }
+    ],
+    "lotus-biscoff-brownie": [
+      {
+        "ingredientId": "ing-terigu",
+        "amount": 0.045,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-butter",
+        "amount": 0.03,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-callebaut",
+        "amount": 0.035,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-biscoff",
+        "amount": 0.035,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-box-bakery",
+        "amount": 1,
+        "unit": "pcs"
+      }
+    ],
+    "og-chewy-cookie": [
+      {
+        "ingredientId": "ing-terigu",
+        "amount": 0.045,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-butter",
+        "amount": 0.025,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-callebaut",
+        "amount": 0.025,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-box-bakery",
+        "amount": 1,
+        "unit": "pcs"
+      }
+    ],
+    "matcha-white-cookie": [
+      {
+        "ingredientId": "ing-terigu",
+        "amount": 0.045,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-butter",
+        "amount": 0.025,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-matcha",
+        "amount": 0.008,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-box-bakery",
+        "amount": 1,
+        "unit": "pcs"
+      }
+    ],
+    "kopi-gula-aren": [
+      {
+        "ingredientId": "ing-kopi",
+        "amount": 0.018,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-milk",
+        "amount": 0.15,
+        "unit": "liter"
+      },
+      {
+        "ingredientId": "ing-gula-aren",
+        "amount": 0.025,
+        "unit": "liter"
+      },
+      {
+        "ingredientId": "ing-cup-cold",
+        "amount": 1,
+        "unit": "pcs"
+      }
+    ],
+    "strawberry-matcha": [
+      {
+        "ingredientId": "ing-matcha",
+        "amount": 0.01,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-milk",
+        "amount": 0.16,
+        "unit": "liter"
+      },
+      {
+        "ingredientId": "ing-gula",
+        "amount": 0.02,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-cup-cold",
+        "amount": 1,
+        "unit": "pcs"
+      }
+    ],
+    "cookie-crumble-shake": [
+      {
+        "ingredientId": "ing-milk",
+        "amount": 0.18,
+        "unit": "liter"
+      },
+      {
+        "ingredientId": "ing-callebaut",
+        "amount": 0.02,
+        "unit": "kg"
+      },
+      {
+        "ingredientId": "ing-cup-cold",
+        "amount": 1,
+        "unit": "pcs"
+      }
+    ]
+  },
+  "wasteLogs": [
+    {
+      "id": "wst-mulul6kcsoa",
+      "timestamp": "2026-09-28T22:57:26.652Z",
+      "ingredientId": "ing-terigu",
+      "ingredientName": "Tepung Cakra Kembar Emas",
+      "qty": 3,
+      "unit": "kg",
+      "costPerUnit": 14500,
+      "totalLoss": 43500,
+      "reason": "Adonan Gagal / Bantat",
+      "note": "",
+      "reportedBy": "Chef Dapur"
+    },
+    {
+      "id": "wst-mulukkqdyw4",
+      "timestamp": "2026-09-28T22:56:58.357Z",
+      "ingredientId": "ing-terigu",
+      "ingredientName": "Tepung Cakra Kembar Emas",
+      "qty": 2,
+      "unit": "kg",
+      "costPerUnit": 14500,
+      "totalLoss": 29000,
+      "reason": "Adonan Gagal / Bantat",
+      "note": "",
+      "reportedBy": "Chef Dapur"
+    },
+    {
+      "id": "wst-muluj6pga1p",
+      "timestamp": "2026-09-28T22:55:53.524Z",
+      "ingredientId": "ing-butter",
+      "ingredientName": "Anchor Butter Unsalted",
+      "qty": 0.2,
+      "unit": "kg",
+      "costPerUnit": 125000,
+      "totalLoss": 25000,
+      "reason": "Adonan Gagal / Bantat",
+      "note": "dimakan tikus",
+      "reportedBy": "Chef Dapur"
+    },
+    {
+      "id": "wst-muludxot0lj",
+      "timestamp": "2026-09-28T22:51:48.557Z",
+      "ingredientId": "ing-butter",
+      "ingredientName": "Anchor Butter Unsalted",
+      "qty": 0.15,
+      "unit": "kg",
+      "costPerUnit": 125000,
+      "totalLoss": 18750,
+      "reason": "Adonan Gagal / Bantat",
+      "note": "Oven batch 1 suhu drop, butter meleleh tidak mengembang",
+      "reportedBy": "Chef Budi"
+    }
+  ],
+  "stockLogs": [
+    {
+      "id": "log-mulul6kcmzi",
+      "timestamp": "2026-09-28T22:57:26.652Z",
+      "ingredientId": "ing-terigu",
+      "ingredientName": "Tepung Cakra Kembar Emas",
+      "type": "OUT_WASTE",
+      "changeQty": -3,
+      "balanceQty": 43.06,
+      "unit": "kg",
+      "reference": "Waste (Adonan Gagal / Bantat)",
+      "note": "Rugi: Rp 43.500"
+    },
+    {
+      "id": "log-mulukkqd8t4",
+      "timestamp": "2026-09-28T22:56:58.357Z",
+      "ingredientId": "ing-terigu",
+      "ingredientName": "Tepung Cakra Kembar Emas",
+      "type": "OUT_WASTE",
+      "changeQty": -2,
+      "balanceQty": 46.06,
+      "unit": "kg",
+      "reference": "Waste (Adonan Gagal / Bantat)",
+      "note": "Rugi: Rp 29.000"
+    },
+    {
+      "id": "log-muluj6pgr41",
+      "timestamp": "2026-09-28T22:55:53.524Z",
+      "ingredientId": "ing-butter",
+      "ingredientName": "Anchor Butter Unsalted",
+      "type": "OUT_WASTE",
+      "changeQty": -0.2,
+      "balanceQty": 13.62,
+      "unit": "kg",
+      "reference": "Waste (Adonan Gagal / Bantat)",
+      "note": "dimakan tikus (Rugi: Rp 25.000)"
+    },
+    {
+      "id": "log-mulue5q58cq",
+      "timestamp": "2026-09-28T22:51:58.973Z",
+      "ingredientId": "ing-box-bakery",
+      "ingredientName": "Box Kraft Chewy's Signature",
+      "type": "OUT_SALE",
+      "changeQty": -2,
+      "balanceQty": 136,
+      "unit": "pcs",
+      "reference": "POS CWY-20260929-0004",
+      "note": "Brulee Baby x2"
+    },
+    {
+      "id": "log-mulue5q5bb5",
+      "timestamp": "2026-09-28T22:51:58.973Z",
+      "ingredientId": "ing-vanilla-bean",
+      "ingredientName": "Madagascar Vanilla Bean Paste",
+      "type": "OUT_SALE",
+      "changeQty": -0.002,
+      "balanceQty": 1.198,
+      "unit": "kg",
+      "reference": "POS CWY-20260929-0004",
+      "note": "Brulee Baby x2"
+    },
+    {
+      "id": "log-mulue5q5olb",
+      "timestamp": "2026-09-28T22:51:58.973Z",
+      "ingredientId": "ing-gula",
+      "ingredientName": "Gula Pasir Halus Premium",
+      "type": "OUT_SALE",
+      "changeQty": -0.05,
+      "balanceQty": 21.92,
+      "unit": "kg",
+      "reference": "POS CWY-20260929-0004",
+      "note": "Brulee Baby x2"
+    },
+    {
+      "id": "log-mulue5q5ndt",
+      "timestamp": "2026-09-28T22:51:58.973Z",
+      "ingredientId": "ing-butter",
+      "ingredientName": "Anchor Butter Unsalted",
+      "type": "OUT_SALE",
+      "changeQty": -0.04,
+      "balanceQty": 13.82,
+      "unit": "kg",
+      "reference": "POS CWY-20260929-0004",
+      "note": "Brulee Baby x2"
+    },
+    {
+      "id": "log-mulue5q5qrq",
+      "timestamp": "2026-09-28T22:51:58.973Z",
+      "ingredientId": "ing-terigu",
+      "ingredientName": "Tepung Cakra Kembar Emas",
+      "type": "OUT_SALE",
+      "changeQty": -0.11,
+      "balanceQty": 48.06,
+      "unit": "kg",
+      "reference": "POS CWY-20260929-0004",
+      "note": "Brulee Baby x2"
+    },
+    {
+      "id": "log-muludxr61ur",
+      "timestamp": "2026-09-28T22:51:48.642Z",
+      "ingredientId": "ing-terigu",
+      "ingredientName": "Tepung Cakra Kembar Emas",
+      "type": "IN_RESTOCK",
+      "changeQty": 10,
+      "balanceQty": 48.17,
+      "unit": "kg",
+      "reference": "Restock Gudang",
+      "note": "Supplier: Bogasari Official"
+    },
+    {
+      "id": "log-muludxotf5m",
+      "timestamp": "2026-09-28T22:51:48.557Z",
+      "ingredientId": "ing-butter",
+      "ingredientName": "Anchor Butter Unsalted",
+      "type": "OUT_WASTE",
+      "changeQty": -0.15,
+      "balanceQty": 13.86,
+      "unit": "kg",
+      "reference": "Waste (Adonan Gagal / Bantat)",
+      "note": "Oven batch 1 suhu drop, butter meleleh tidak mengembang (Rugi: Rp 18.750)"
+    }
+  ]
+}

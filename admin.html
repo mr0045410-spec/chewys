@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard · Chewy's Dessert Stok & Menu</title>
+  <link rel="icon" type="image/png" href="./assets/logo-chewys-orange.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'bakery-orange': '#FE6134',
+            'bakery-orange-hover': '#e34e23',
+            'bakery-cream': '#F7F6E2',
+            'chocolate-dark': '#2D1406'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@700&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #FFF8F2;
+      color: #2D1406;
+    }
+    .toggle-checkbox:checked {
+      right: 0;
+      border-color: #10B981;
+    }
+    .toggle-checkbox:checked + .toggle-label {
+      background-color: #10B981;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- =========================================================================
+       1. PIN AUTHENTICATION OVERLAY
+       ========================================================================= -->
+  <div id="auth-overlay" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/95 backdrop-blur-md">
+    <div class="w-full max-w-sm bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-2 border-orange-200 text-center animate-in fade-in zoom-in-95 duration-200">
+      <div class="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center mx-auto mb-4 border border-orange-200">
+        <img src="./assets/logo-chewys-orange.png" alt="Chewy's" class="h-8 object-contain">
+      </div>
+      <h2 class="text-2xl font-extrabold text-[#2D1406]">Admin Chewy's</h2>
+      <p class="text-xs text-stone-500 mt-1 mb-6">Masukkan PIN kasir / pemilik untuk kelola stok & menu</p>
+
+      <form id="auth-form" class="space-y-4">
+        <div>
+          <input type="password" id="pin-input" maxlength="6" inputmode="numeric" placeholder="Masukkan PIN (Default: 1234)" 
+                 class="w-full text-center text-2xl tracking-[0.4em] font-mono py-3 px-4 rounded-2xl border-2 border-orange-200 focus:border-bakery-orange focus:outline-none transition-colors bg-orange-50/50 text-[#2D1406]" required autofocus>
+          <p id="pin-error" class="hidden text-xs text-red-600 font-semibold mt-2">PIN salah! Silakan coba lagi.</p>
+        </div>
+        <button type="submit" class="w-full py-3.5 px-4 rounded-full bg-bakery-orange hover:bg-bakery-orange-hover text-white font-bold text-sm shadow-lg shadow-bakery-orange/30 transition-all hover:scale-[1.02] flex items-center justify-center gap-2">
+          <i data-lucide="unlock" class="w-4 h-4"></i>
+          <span>Buka Dashboard</span>
+        </button>
+      </form>
+      <div class="mt-5 text-[11px] text-stone-400">
+        Default PIN: <strong class="text-stone-600 font-mono">1234</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       2. MAIN DASHBOARD NAVIGATION
+       ========================================================================= -->
+  <header class="bg-white border-b border-orange-100 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="/" class="flex items-center gap-2">
+          <img src="./assets/logo-chewys-orange.png" alt="Chewy's" class="h-7 sm:h-8 object-contain">
+        </a>
+        <span class="hidden sm:inline-block bg-orange-100 text-bakery-orange font-mono text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full font-bold">
+          Panel Stok & Menu
+        </span>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3">
+        <a href="/owner.html" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-300 text-xs font-bold text-amber-800 hover:bg-amber-100 transition-colors">
+          <i data-lucide="crown" class="w-3.5 h-3.5 text-amber-600"></i>
+          <span>Portal Owner</span>
+        </a>
+
+        <a href="/pos.html" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors">
+          <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
+          <span>Buka Kasir POS</span>
+        </a>
+
+        <a href="/" target="_blank" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-orange-50 border border-orange-200 text-xs font-bold text-bakery-orange hover:bg-orange-100 transition-colors">
+          <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+          <span>Lihat Web</span>
+        </a>
+
+        <button onclick="openMenuModal()" class="inline-flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-2 rounded-full bg-bakery-orange hover:bg-bakery-orange-hover text-white text-xs sm:text-sm font-bold shadow-md shadow-bakery-orange/30 transition-all hover:scale-105">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>Tambah Menu</span>
+        </button>
+
+        <button onclick="logoutAdmin()" title="Logout" class="p-2 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       3. DASHBOARD CONTENT
+       ========================================================================= -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1 w-full">
+    
+    <!-- Top Summary Banner -->
+    <div class="bg-gradient-to-r from-orange-500 to-amber-600 rounded-3xl p-6 sm:p-8 text-white shadow-xl mb-8 relative overflow-hidden">
+      <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-mono font-bold uppercase tracking-wider mb-2 backdrop-blur-sm">
+            <i data-lucide="flame" class="w-3.5 h-3.5"></i>
+            Live Stock Controller
+          </span>
+          <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Kelola Ketersediaan Menu</h1>
+          <p class="text-white/90 text-xs sm:text-sm mt-1 max-w-xl">
+            Klik tombol toggle di setiap produk untuk langsung mengubah status stok ke <strong>Tersedia</strong> atau <strong>Habis (Sold Out)</strong> di website secara instan.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-3 bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/20">
+          <div class="text-center px-3 border-r border-white/20">
+            <span id="stat-total" class="block text-2xl font-extrabold font-mono">0</span>
+            <span class="text-[10px] uppercase font-bold text-white/80">Total Menu</span>
+          </div>
+          <div class="text-center px-3 border-r border-white/20">
+            <span id="stat-instock" class="block text-2xl font-extrabold font-mono text-emerald-300">0</span>
+            <span class="text-[10px] uppercase font-bold text-white/80">Tersedia</span>
+          </div>
+          <div class="text-center px-3">
+            <span id="stat-soldout" class="block text-2xl font-extrabold font-mono text-rose-300">0</span>
+            <span class="text-[10px] uppercase font-bold text-white/80">Sold Out</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters & Search Bar -->
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-6">
+      <div class="flex flex-wrap items-center gap-1.5 p-1 bg-white rounded-full border border-orange-200 shadow-sm">
+        <button onclick="setFilter('all')" data-filter="all" class="filter-tab px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-bakery-orange text-white">Semua</button>
+        <button onclick="setFilter('in-stock')" data-filter="in-stock" class="filter-tab px-4 py-1.5 rounded-full text-xs font-semibold text-stone-600 hover:text-bakery-orange">Tersedia</button>
+        <button onclick="setFilter('sold-out')" data-filter="sold-out" class="filter-tab px-4 py-1.5 rounded-full text-xs font-semibold text-stone-600 hover:text-bakery-orange">Habis (Sold Out)</button>
+      </div>
+
+      <div class="relative w-full sm:w-72">
+        <i data-lucide="search" class="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+        <input type="text" id="search-input" oninput="renderTable()" placeholder="Cari nama menu..." 
+               class="w-full pl-10 pr-4 py-2 rounded-full border border-orange-200 text-xs sm:text-sm focus:outline-none focus:border-bakery-orange bg-white">
+      </div>
+    </div>
+
+    <!-- Menu Cards Grid -->
+    <div id="menu-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <!-- Injected via JavaScript -->
+    </div>
+
+    <div id="empty-state" class="hidden text-center py-16">
+      <i data-lucide="cookie" class="w-12 h-12 text-stone-300 mx-auto mb-3"></i>
+      <h3 class="text-base font-bold text-stone-600">Tidak ada menu yang cocok</h3>
+      <p class="text-xs text-stone-400 mt-1">Coba kata kunci pencarian lain atau tambah menu baru.</p>
+    </div>
+
+  </main>
+
+  <!-- =========================================================================
+       4. MODAL: TAMBAH / EDIT MENU + UPLOAD FOTO
+       ========================================================================= -->
+  <div id="menu-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div onclick="closeMenuModal()" class="fixed inset-0 bg-black/60 backdrop-blur-sm"></div>
+
+    <div class="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden border-2 border-orange-200 z-10 my-auto max-h-[92vh] flex flex-col">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-orange-100 flex items-center justify-between bg-orange-50/50">
+        <div>
+          <h3 id="modal-heading" class="text-lg font-extrabold text-[#2D1406]">Tambah Menu Baru</h3>
+          <p class="text-xs text-stone-500">Menu akan langsung tampil di website pelanggan</p>
+        </div>
+        <button onclick="closeMenuModal()" class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-stone-400 hover:text-stone-700 border border-orange-100">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body (Form) -->
+      <form id="menu-form" onsubmit="handleFormSubmit(event)" class="p-6 overflow-y-auto space-y-4 text-xs sm:text-sm">
+        <input type="hidden" id="form-item-id">
+
+        <!-- Photo Upload Box -->
+        <div>
+          <label class="block font-bold text-stone-700 mb-1.5">Foto Produk (Dari Galeri / Kamera)</label>
+          <div class="flex items-center gap-4">
+            <div class="relative w-24 h-24 rounded-2xl bg-stone-100 border-2 border-dashed border-orange-300 overflow-hidden flex items-center justify-center shrink-0 group cursor-pointer" onclick="document.getElementById('form-file-input').click()">
+              <img id="form-img-preview" src="" alt="Preview" class="hidden w-full h-full object-cover">
+              <div id="form-img-placeholder" class="flex flex-col items-center justify-center text-stone-400 p-2 text-center">
+                <i data-lucide="camera" class="w-6 h-6 mb-1 text-bakery-orange"></i>
+                <span class="text-[9px] font-bold">Pilih Foto</span>
+              </div>
+            </div>
+            <div class="flex-1 space-y-1.5">
+              <input type="file" id="form-file-input" accept="image/*" onchange="handleImageSelection(event)" class="hidden">
+              <button type="button" onclick="document.getElementById('form-file-input').click()" 
+                      class="px-4 py-2 rounded-xl bg-orange-50 border border-orange-200 text-bakery-orange font-bold text-xs hover:bg-orange-100 transition-colors flex items-center gap-2">
+                <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                <span>Pilih Foto dari Galeri</span>
+              </button>
+              <p class="text-[11px] text-stone-400">Format: JPG, PNG, WEBP (Otomatis dikompresi untuk web)</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Name & Category -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Nama Menu *</label>
+            <input type="text" id="form-name" required placeholder="Contoh: Pistachio Brulee" 
+                   class="w-full px-3.5 py-2.5 rounded-xl border border-orange-200 focus:border-bakery-orange focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Kategori *</label>
+            <select id="form-category" required class="w-full px-3.5 py-2.5 rounded-xl border border-orange-200 focus:border-bakery-orange focus:outline-none bg-white">
+              <option value="bomboloni">Signature Bomboloni</option>
+              <option value="brownies">Brownies & Brookies</option>
+              <option value="cookies">Chewy Cookies</option>
+              <option value="beverages">Drinks & Coffee</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Price & Tag -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Harga (Rp) *</label>
+            <input type="text" id="form-price" required placeholder="Contoh: 30000 atau Rp 30.000" 
+                   class="w-full px-3.5 py-2.5 rounded-xl border border-orange-200 focus:border-bakery-orange focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Tag Produk</label>
+            <input type="text" id="form-tag" placeholder="Contoh: Best Seller · New Variant" 
+                   class="w-full px-3.5 py-2.5 rounded-xl border border-orange-200 focus:border-bakery-orange focus:outline-none">
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label class="block font-bold text-stone-700 mb-1">Deskripsi Singkat</label>
+          <textarea id="form-desc" rows="2" placeholder="Jelaskan rasa lelehan, krim, atau teksturnya..." 
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-orange-200 focus:border-bakery-orange focus:outline-none resize-none"></textarea>
+        </div>
+
+        <!-- Texture & Bundle Info -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Highlight Tekstur</label>
+            <input type="text" id="form-texture" placeholder="Contoh: Crispy outside · Silky core" 
+                   class="w-full px-3.5 py-2.5 rounded-xl border border-orange-200 focus:border-bakery-orange focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Info Paket / Bundle</label>
+            <input type="text" id="form-bundle" placeholder="Contoh: Box of 3 & Box of 6" 
+                   class="w-full px-3.5 py-2.5 rounded-xl border border-orange-200 focus:border-bakery-orange focus:outline-none">
+          </div>
+        </div>
+
+        <!-- Stock Quantity Input -->
+        <div class="p-3.5 bg-orange-50/70 border border-orange-200 rounded-2xl">
+          <label class="block font-bold text-stone-700 mb-1">Jumlah Stok Fisik (Porsi)</label>
+          <div class="flex items-center gap-2">
+            <input type="number" id="form-stock-qty" min="0" value="25" placeholder="Contoh: 25" 
+                   class="w-full px-3.5 py-2 text-sm font-mono font-bold rounded-xl border border-orange-300 focus:border-bakery-orange focus:outline-none bg-white">
+            <span class="text-xs text-stone-500 font-semibold whitespace-nowrap">porsi</span>
+          </div>
+          <p class="text-[11px] text-stone-400 mt-1">Stok ini berkurang otomatis saat kasir POS memproses pesanan.</p>
+        </div>
+
+        <!-- Checkboxes -->
+        <div class="pt-1 flex flex-col gap-2">
+          <label class="inline-flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="form-shipping" class="w-4 h-4 rounded text-bakery-orange focus:ring-bakery-orange border-orange-300">
+            <span class="text-xs font-semibold text-stone-700">Aman dikirim ke luar kota (Vacuum pack)</span>
+          </label>
+          <label class="inline-flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="form-instock" checked class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-orange-300">
+            <span class="text-xs font-semibold text-stone-700">Status ketersediaan: <strong class="text-emerald-700">Tersedia</strong></span>
+          </label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="pt-4 border-t border-orange-100 flex items-center justify-end gap-2.5">
+          <button type="button" onclick="closeMenuModal()" class="px-5 py-2.5 rounded-full border border-stone-300 font-bold text-xs text-stone-600 hover:bg-stone-50">
+            Batal
+          </button>
+          <button type="submit" id="form-submit-btn" class="px-6 py-2.5 rounded-full bg-bakery-orange hover:bg-bakery-orange-hover text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Simpan Menu</span>
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 bg-[#2D1406] text-white px-5 py-3 rounded-2xl shadow-2xl border border-orange-400 flex items-center gap-3 transform translate-y-24 opacity-0 transition-all duration-300">
+    <i id="toast-icon" data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
+    <span id="toast-msg" class="text-xs sm:text-sm font-semibold">Berhasil disimpan!</span>
+  </div>
+
+  <!-- =========================================================================
+       5. JAVASCRIPT CONTROLLER
+       ========================================================================= -->
+  <script>
+    let allItems = [];
+    let currentFilter = 'all';
+    let uploadedBase64 = null;
+    let isAuthenticated = false;
+
+    // --- Authentication ---
+    const authOverlay = document.getElementById('auth-overlay');
+    const authForm = document.getElementById('auth-form');
+    const pinInput = document.getElementById('pin-input');
+    const pinError = document.getElementById('pin-error');
+
+    // Check session
+    if (sessionStorage.getItem('chewys_admin_auth') === 'true') {
+      authOverlay.classList.add('hidden');
+      isAuthenticated = true;
+      loadMenuData();
+    }
+
+    authForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pin = pinInput.value.trim();
+      try {
+        const resp = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin })
+        });
+        const res = await resp.json();
+        if (res.success) {
+          sessionStorage.setItem('chewys_admin_auth', 'true');
+          authOverlay.classList.add('hidden');
+          isAuthenticated = true;
+          loadMenuData();
+          showToast('Login berhasil!');
+        } else {
+          pinError.classList.remove('hidden');
+          pinInput.value = '';
+          pinInput.focus();
+        }
+      } catch (err) {
+        // Fallback for offline default pin 1234
+        if (pin === '1234') {
+          sessionStorage.setItem('chewys_admin_auth', 'true');
+          authOverlay.classList.add('hidden');
+          isAuthenticated = true;
+          loadMenuData();
+        } else {
+          pinError.classList.remove('hidden');
+        }
+      }
+    });
+
+    function logoutAdmin() {
+      sessionStorage.removeItem('chewys_admin_auth');
+      window.location.reload();
+    }
+
+    // --- Load Menu from API ---
+    async function loadMenuData() {
+      try {
+        const resp = await fetch('/api/menu');
+        const res = await resp.json();
+        if (res.success && res.data) {
+          allItems = res.data.menuItems || [];
+          updateStats();
+          renderTable();
+        }
+      } catch (err) {
+        console.error('Error fetching menu:', err);
+      }
+    }
+
+    function updateStats() {
+      const total = allItems.length;
+      const inStock = allItems.filter(i => i.inStock !== false).length;
+      const soldOut = total - inStock;
+
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-instock').textContent = inStock;
+      document.getElementById('stat-soldout').textContent = soldOut;
+    }
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-tab').forEach(btn => {
+        if (btn.getAttribute('data-filter') === filter) {
+          btn.className = 'filter-tab px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-bakery-orange text-white';
+        } else {
+          btn.className = 'filter-tab px-4 py-1.5 rounded-full text-xs font-semibold text-stone-600 hover:text-bakery-orange';
+        }
+      });
+      renderTable();
+    }
+
+    function renderTable() {
+      const grid = document.getElementById('menu-grid');
+      const empty = document.getElementById('empty-state');
+      const search = document.getElementById('search-input').value.toLowerCase().trim();
+
+      let filtered = allItems;
+
+      if (currentFilter === 'in-stock') {
+        filtered = filtered.filter(i => i.inStock !== false);
+      } else if (currentFilter === 'sold-out') {
+        filtered = filtered.filter(i => i.inStock === false);
+      }
+
+      if (search) {
+        filtered = filtered.filter(i => i.name.toLowerCase().includes(search) || (i.description && i.description.toLowerCase().includes(search)));
+      }
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      grid.innerHTML = filtered.map(item => {
+        const isAvailable = item.inStock !== false;
+        return `
+          <div class="bg-white rounded-3xl p-4 sm:p-5 border-2 ${isAvailable ? 'border-orange-100 hover:border-orange-300' : 'border-rose-200 bg-rose-50/20'} shadow-md transition-all flex flex-col justify-between">
+            <div>
+              <div class="relative aspect-[16/10] rounded-2xl overflow-hidden mb-3 bg-stone-100">
+                <img src="${item.image}" alt="${item.name}" class="w-full h-full object-cover ${!isAvailable ? 'filter grayscale opacity-75' : ''}">
+                <div class="absolute top-2.5 left-2.5 flex flex-col gap-1">
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${isAvailable ? 'bg-bakery-orange text-white' : 'bg-stone-800 text-white'} shadow-sm">
+                    ${item.tag || 'Special'}
+                  </span>
+                </div>
+
+                <div class="absolute top-2.5 right-2.5">
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold shadow-sm ${isAvailable ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white animate-pulse'}">
+                    ${isAvailable ? '● TERSEDIA' : '✕ SOLD OUT'}
+                  </span>
+                </div>
+              </div>
+
+              <div class="space-y-1">
+                <div class="flex items-start justify-between gap-2">
+                  <h4 class="font-extrabold text-[#2D1406] text-base sm:text-lg leading-snug">${item.name}</h4>
+                  <span class="font-mono font-extrabold text-bakery-orange text-sm sm:text-base shrink-0">${item.price}</span>
+                </div>
+                <p class="text-xs text-stone-500 line-clamp-2 leading-relaxed">${item.description || 'Tidak ada deskripsi'}</p>
+
+                <!-- Real-time Stock Quantity Controller -->
+                <div class="mt-2.5 p-2 bg-stone-50 rounded-2xl border border-stone-200/80 flex items-center justify-between">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Stok:</span>
+                    <span class="font-mono font-black text-xs ${item.stockQty > 5 ? 'text-stone-800' : (item.stockQty > 0 ? 'text-amber-600' : 'text-rose-600')}">
+                      ${item.stockQty !== undefined ? item.stockQty : (isAvailable ? 25 : 0)} porsi
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <button onclick="adjustStock('${item.id}', -1)" title="Kurangi 1" class="w-6 h-6 rounded-lg bg-white border border-stone-200 hover:bg-stone-100 flex items-center justify-center font-bold text-xs text-stone-700 shadow-2xs">-</button>
+                    <button onclick="adjustStock('${item.id}', 1)" title="Tambah 1" class="w-6 h-6 rounded-lg bg-white border border-stone-200 hover:bg-stone-100 flex items-center justify-center font-bold text-xs text-stone-700 shadow-2xs">+</button>
+                    <button onclick="adjustStock('${item.id}', 10)" title="Tambah 10 (Restock Batch)" class="px-2 h-6 rounded-lg bg-emerald-100 border border-emerald-300 hover:bg-emerald-200 text-emerald-800 font-bold text-[10px] shadow-2xs">+10</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-orange-100 flex items-center justify-between gap-2">
+              
+              <!-- Fast Toggle Stock Button -->
+              <button onclick="toggleStock('${item.id}', ${!isAvailable})" 
+                      class="flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm ${
+                        isAvailable 
+                          ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200' 
+                          : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                      }">
+                <i data-lucide="${isAvailable ? 'slash' : 'check'}" class="w-3.5 h-3.5"></i>
+                <span>${isAvailable ? 'Ubah ke Sold Out' : 'Ubah ke Tersedia'}</span>
+              </button>
+
+              <!-- Edit & Delete Buttons -->
+              <div class="flex items-center gap-1">
+                <button onclick="openMenuModal('${item.id}')" title="Edit Menu" 
+                        class="p-2 rounded-xl text-stone-500 hover:text-bakery-orange hover:bg-orange-50 border border-stone-200 transition-colors">
+                  <i data-lucide="edit-3" class="w-4 h-4"></i>
+                </button>
+                <button onclick="deleteMenu('${item.id}', '${item.name.replace(/'/g, "\\'")}')" title="Hapus Menu" 
+                        class="p-2 rounded-xl text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-stone-200 transition-colors">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    // --- Adjust Stock Counter (+1, -1, +10) ---
+    async function adjustStock(id, delta) {
+      try {
+        const resp = await fetch('/api/menu/update-stock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, delta })
+        });
+        const res = await resp.json();
+        if (res.success && res.item) {
+          const idx = allItems.findIndex(i => i.id === id);
+          if (idx !== -1) allItems[idx] = res.item;
+          updateStats();
+          renderTable();
+          showToast(`Stok "${res.item.name}": ${res.item.stockQty} porsi (${res.item.inStock ? 'Tersedia' : 'Sold Out'})`);
+        }
+      } catch (err) {
+        showToast('Gagal update stok', false);
+      }
+    }
+
+    // --- Fast Toggle Stock Status ---
+    async function toggleStock(id, newStatus) {
+      try {
+        const resp = await fetch('/api/menu/toggle-stock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, inStock: newStatus })
+        });
+        const res = await resp.json();
+        if (res.success && res.item) {
+          const idx = allItems.findIndex(i => i.id === id);
+          if (idx !== -1) allItems[idx] = res.item;
+          updateStats();
+          renderTable();
+          showToast(`Status "${res.item.name}" diubah ke ${res.item.inStock ? 'Tersedia' : 'Sold Out'} (Stok: ${res.item.stockQty})`);
+        }
+      } catch (err) {
+        showToast('Gagal mengubah stok', false);
+      }
+    }
+
+    // --- Handle Image Upload File ---
+    function handleImageSelection(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        uploadedBase64 = e.target.result;
+        const img = document.getElementById('form-img-preview');
+        img.src = uploadedBase64;
+        img.classList.remove('hidden');
+        document.getElementById('form-img-placeholder').classList.add('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // --- Open & Close Modal ---
+    function openMenuModal(itemId = null) {
+      const modal = document.getElementById('menu-modal');
+      const form = document.getElementById('menu-form');
+      const heading = document.getElementById('modal-heading');
+      const preview = document.getElementById('form-img-preview');
+      const placeholder = document.getElementById('form-img-placeholder');
+
+      form.reset();
+      uploadedBase64 = null;
+      document.getElementById('form-item-id').value = '';
+
+      if (itemId) {
+        const item = allItems.find(i => i.id === itemId);
+        if (item) {
+          heading.textContent = `Edit Menu: ${item.name}`;
+          document.getElementById('form-item-id').value = item.id;
+          document.getElementById('form-name').value = item.name;
+          document.getElementById('form-category').value = item.category || 'bomboloni';
+          document.getElementById('form-price').value = item.price;
+          document.getElementById('form-tag').value = item.tag || '';
+          document.getElementById('form-desc').value = item.description || '';
+          document.getElementById('form-texture').value = item.highlightTexture || '';
+          document.getElementById('form-bundle').value = item.bundleInfo || '';
+          document.getElementById('form-shipping').checked = Boolean(item.safeForShipping);
+          document.getElementById('form-stock-qty').value = item.stockQty !== undefined ? item.stockQty : (item.inStock !== false ? 25 : 0);
+          document.getElementById('form-instock').checked = item.inStock !== false;
+
+          if (item.image) {
+            preview.src = item.image;
+            preview.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+          } else {
+            preview.classList.add('hidden');
+            placeholder.classList.remove('hidden');
+          }
+        }
+      } else {
+        heading.textContent = 'Tambah Menu Baru';
+        preview.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+        document.getElementById('form-stock-qty').value = 25;
+        document.getElementById('form-instock').checked = true;
+      }
+
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeMenuModal() {
+      document.getElementById('menu-modal').classList.add('hidden');
+    }
+
+    // --- Submit Form (Create / Edit) ---
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('form-submit-btn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = 'Menyimpan...';
+
+      const id = document.getElementById('form-item-id').value;
+      const isEdit = Boolean(id);
+
+      const payload = {
+        id: id || undefined,
+        name: document.getElementById('form-name').value.trim(),
+        category: document.getElementById('form-category').value,
+        price: document.getElementById('form-price').value.trim(),
+        tag: document.getElementById('form-tag').value.trim(),
+        description: document.getElementById('form-desc').value.trim(),
+        highlightTexture: document.getElementById('form-texture').value.trim(),
+        bundleInfo: document.getElementById('form-bundle').value.trim(),
+        safeForShipping: document.getElementById('form-shipping').checked,
+        stockQty: Math.max(0, parseInt(document.getElementById('form-stock-qty').value, 10) || 0),
+        inStock: document.getElementById('form-instock').checked,
+        imageBase64: uploadedBase64 || undefined
+      };
+
+      try {
+        const resp = await fetch('/api/menu', {
+          method: isEdit ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const res = await resp.json();
+
+        if (res.success) {
+          closeMenuModal();
+          showToast(isEdit ? 'Menu berhasil diperbarui!' : 'Menu baru berhasil ditambahkan!');
+          await loadMenuData();
+        } else {
+          showToast(res.message || 'Gagal menyimpan menu', false);
+        }
+      } catch (err) {
+        showToast('Terjadi kesalahan koneksi', false);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>Simpan Menu</span>';
+        lucide.createIcons();
+      }
+    }
+
+    // --- Delete Menu ---
+    async function deleteMenu(id, name) {
+      if (!confirm(`Yakin ingin menghapus menu "${name}"?`)) return;
+
+      try {
+        const resp = await fetch('/api/menu', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const res = await resp.json();
+        if (res.success) {
+          showToast(`Menu "${name}" berhasil dihapus`);
+          await loadMenuData();
+        } else {
+          showToast('Gagal menghapus menu', false);
+        }
+      } catch (err) {
+        showToast('Koneksi gagal', false);
+      }
+    }
+
+    // --- Toast Notification ---
+    function showToast(msg, isSuccess = true) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-msg');
+      const toastIcon = document.getElementById('toast-icon');
+
+      toastMsg.textContent = msg;
+      if (isSuccess) {
+        toastIcon.setAttribute('data-lucide', 'check-circle');
+        toastIcon.className = 'w-5 h-5 text-emerald-400';
+      } else {
+        toastIcon.setAttribute('data-lucide', 'alert-circle');
+        toastIcon.className = 'w-5 h-5 text-rose-400';
+      }
+      lucide.createIcons();
+
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-24', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 3000);
+    }
+
+    // Init icons
+    lucide.createIcons();
+  </script>
+</body>
+</html>

@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="id" class="lenis scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chewy's dessert · A Treat For Every Moment | Bali & Jakarta</title>
+  <meta name="description" content="chewy's dessert by Jennifer Coppen - Freshly baked artisanal bomboloni, fudgy brownies, brookies & chewy cookies. Outlets in Umalas Bali & Kemang Jakarta." />
+  <link rel="icon" type="image/png" href="./assets/chewys-logo-orange.png" />
+  
+  <!-- Google Fonts: Shrikhand, Plus Jakarta Sans & Space Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Shrikhand&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN with Chewys Exact Box Color & Font Theme -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            cream: {
+              50: '#FFFEF7',
+              100: '#FAF8EE',
+              200: '#FFF8F2',
+              300: '#FDEEE4',
+              400: '#FBD7C3',
+            },
+            bakery: {
+              // Exact Chewy's Box Orange sampled directly from the official packaging
+              orange: '#FD5F29',
+              'orange-hover': '#E04510',
+              'orange-light': '#FFF0EB',
+              'orange-box': '#FD5F29',
+              'orange-deep': '#C93B09',
+            },
+            chocolate: {
+              DEFAULT: '#2D1406',
+              dark: '#1C0B03',
+              soft: '#4A2511',
+              muted: '#7A543E',
+            }
+          },
+          fontFamily: {
+            brand: ['Shrikhand', 'cursive'],
+            mono: ['Space Mono', 'ui-monospace', 'monospace'],
+            sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="./src/style.css" />
+
+  <!-- GSAP & ScrollTrigger CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+  <!-- Lenis Smooth Scroll CDN -->
+  <script src="https://unpkg.com/lenis@1.1.18/dist/lenis.min.js"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-[#FFF8F2] text-[#2D1406] antialiased selection:bg-bakery-orange selection:text-white font-sans overflow-x-hidden">
+
+  <!-- =========================================================================
+       Floating Scene Navigator (Right Side Dock)
+       ========================================================================= -->
+  <aside class="fixed right-6 top-1/2 -translate-y-1/2 z-50 hidden lg:flex flex-col gap-5 glass-panel-light px-3.5 py-5 rounded-full shadow-2xl border border-orange-200">
+    <button onclick="window.scrollToSection('scrolly-section')" data-target="scrolly-section" class="scene-nav-dot active flex items-center gap-2 group text-bakery-orange font-bold text-xs font-mono">
+      <span class="dot-indicator w-3 h-3 rounded-full bg-bakery-orange ring-4 ring-bakery-orange/40 shadow-md transition-all"></span>
+      <span class="opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pr-2">Beranda</span>
+    </button>
+    <button onclick="window.scrollToSection('menu')" data-target="menu" class="scene-nav-dot flex items-center gap-2 group text-stone-400 font-medium text-xs font-mono hover:text-[#2D1406]">
+      <span class="dot-indicator w-2 h-2 rounded-full bg-stone-300 group-hover:bg-bakery-orange transition-all"></span>
+      <span class="opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pr-2">Menu</span>
+    </button>
+    <button onclick="window.scrollToSection('outlets')" data-target="outlets" class="scene-nav-dot flex items-center gap-2 group text-stone-400 font-medium text-xs font-mono hover:text-[#2D1406]">
+      <span class="dot-indicator w-2 h-2 rounded-full bg-stone-300 group-hover:bg-bakery-orange transition-all"></span>
+      <span class="opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pr-2">Gerai</span>
+    </button>
+    <button onclick="window.scrollToSection('story')" data-target="story" class="scene-nav-dot flex items-center gap-2 group text-stone-400 font-medium text-xs font-mono hover:text-[#2D1406]">
+      <span class="dot-indicator w-2 h-2 rounded-full bg-stone-300 group-hover:bg-bakery-orange transition-all"></span>
+      <span class="opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pr-2">Cerita</span>
+    </button>
+  </aside>
+
+  <!-- =========================================================================
+       Top Announcement Bar & Header (Exact Box Orange Theme)
+       ========================================================================= -->
+  <header class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+    <div class="bg-bakery-orange text-white py-1 px-3 text-center text-[10px] sm:text-xs font-mono flex items-center justify-center gap-1.5 shadow-sm font-semibold tracking-wide">
+      <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse shrink-0"></span>
+      <span class="truncate">KEMANG, JAKARTA SELATAN & UMALAS, BALI</span>
+      <span class="hidden md:inline opacity-90">· GoFood & Dine-in Ready</span>
+    </div>
+
+    <!-- Main Navigation Bar -->
+    <nav class="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 mt-1.5 sm:mt-2.5">
+      <div class="glass-panel-light rounded-full px-3.5 sm:px-7 py-2 sm:py-3 flex items-center justify-between shadow-xl shadow-orange-950/5 border border-orange-200/80">
+        
+        <!-- Logo with exact Chewy's Box bite-mark typography -->
+        <a href="#scrolly-section" onclick="window.scrollToSection('scrolly-section')" class="flex items-center gap-2 sm:gap-3 group">
+          <div class="h-7 sm:h-10 flex items-center">
+            <img src="./assets/logo-chewys-orange.png" alt="chewy's" class="h-6 sm:h-9 object-contain group-hover:scale-105 transition-transform" />
+          </div>
+          <div class="hidden sm:block border-l border-orange-200 pl-3">
+            <span class="font-mono text-[9px] tracking-[0.22em] text-[#2D1406] uppercase font-bold block leading-none">
+              A TREAT FOR EVERY MOMENT
+            </span>
+          </div>
+        </a>
+
+        <!-- Navigation Links (Desktop) -->
+        <div class="hidden md:flex items-center gap-7 text-xs sm:text-sm font-bold text-[#2D1406]">
+          <button onclick="window.scrollToSection('scrolly-section')" class="hover:text-bakery-orange transition-colors">Beranda</button>
+          <button onclick="window.scrollToSection('menu')" class="hover:text-bakery-orange transition-colors">Menu</button>
+          <button onclick="window.scrollToSection('outlets')" class="hover:text-bakery-orange transition-colors">Gerai</button>
+          <button onclick="window.scrollToSection('story')" class="hover:text-bakery-orange transition-colors">Cerita Kami</button>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-1.5 sm:gap-2.5">
+          <button onclick="window.scrollToSection('outlets')" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-orange-50 border border-orange-200 text-xs font-bold text-bakery-orange hover:bg-orange-100 transition-all">
+            <i data-lucide="map-pin" class="w-3.5 h-3.5 text-bakery-orange"></i>
+            Lokasi
+          </button>
+
+          <button onclick="window.scrollToSection('menu')" class="inline-flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full bg-bakery-orange text-white text-xs sm:text-sm font-bold hover:bg-bakery-orange-hover shadow-md shadow-bakery-orange/35 hover:scale-105 transition-all">
+            <i data-lucide="shopping-bag" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+            <span>Menu</span>
+          </button>
+        </div>
+
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <!-- =========================================================================
+         SCENE 1: The Camera Zoom Dive-In (350vh Timeline in Iconic Box Orange)
+         ========================================================================= -->
+    <section id="scrolly-section" class="relative h-[350vh] bg-bakery-orange">
+      
+      <!-- Sticky Fullscreen Viewport -->
+      <div class="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center">
+        
+        <!-- Canvas Image Sequence Element (Apple-style 60FPS Scrubbing) -->
+        <canvas id="scrolly-canvas" class="absolute inset-0 w-full h-full object-cover z-0"></canvas>
+        <video id="scrolly-video" src="./assets/hero-scrub.mp4" muted playsinline preload="auto" class="hidden absolute inset-0 w-full h-full object-cover z-0"></video>
+
+        <!-- Subtle Lighting Vignette -->
+        <div class="absolute inset-0 bg-radial-gradient from-transparent via-transparent to-black/30 pointer-events-none z-10"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20 pointer-events-none z-10"></div>
+
+        <!-- Frame 1: The Chewy's Box Introduction (0% - 28% Scroll) -->
+        <div id="frame-text-1" class="absolute z-20 max-w-2xl px-4 sm:px-6 text-center transition-all duration-700 ease-out opacity-100 w-full flex flex-col items-center justify-between sm:justify-center h-[85vh] sm:h-auto pt-16 sm:pt-0 pb-16 sm:pb-0">
+          
+          <!-- Top Area: Brand & Title (Above the video on mobile) -->
+          <div class="flex flex-col items-center">
+            <!-- Official Signature Box Badge -->
+            <div class="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-[#F7F6E2] text-bakery-orange text-[10px] sm:text-xs font-mono font-bold tracking-widest uppercase mb-1.5 sm:mb-4 shadow-xl border border-orange-200">
+              <i data-lucide="sparkles" class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-bakery-orange"></i>
+              A TREAT FOR EVERY MOMENT
+            </div>
+
+            <h1 class="tracking-tight leading-[1.08]">
+              <span class="text-xl sm:text-4xl md:text-6xl font-extrabold text-[#F7F6E2] drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)] block">
+                Freshly Baked Sweets
+              </span>
+              <div class="my-1 sm:my-4 flex justify-center items-center">
+                <img src="./assets/logo-chewys-cream.png" alt="chewy's logo" class="h-8 sm:h-20 md:h-28 object-contain drop-shadow-[0_10px_25px_rgba(0,0,0,0.85)] filter hover:scale-105 transition-transform duration-300" title="chewy's - bite mark on 'c'" />
+              </div>
+            </h1>
+          </div>
+
+          <!-- Middle Clear Window (Lets the 16:9 video of Jennifer, oven & family shine through on mobile) -->
+          <div class="h-[210px] sm:h-0 w-full pointer-events-none"></div>
+
+          <!-- Bottom Area: Narrative & Scroll Cue (Below the video on mobile) -->
+          <div class="flex flex-col items-center">
+            <p class="text-[#F7F6E2] text-[11px] sm:text-base md:text-lg max-w-lg mx-auto font-medium leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] px-2">
+              Dari racikan dapur <span class="text-[#FE6134] bg-[#F7F6E2] px-1.5 sm:px-2 py-0.5 rounded-md font-bold shadow-sm">Umalas Bali</span> hingga gerai <span class="text-[#FE6134] bg-[#F7F6E2] px-1.5 sm:px-2 py-0.5 rounded-md font-bold shadow-sm">Kemang Jakarta</span>. Scroll ke bawah untuk membuka boks dan menyelam ke dalam lelehan rasa!
+            </p>
+
+            <div class="mt-3 sm:mt-8 inline-flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-1.5 sm:py-2.5 rounded-full bg-[#F7F6E2]/95 backdrop-blur-md border border-[#FE6134]/40 text-[11px] sm:text-xs font-mono text-[#2D1406] font-bold shadow-xl animate-bounce">
+              <span class="text-[#FE6134] font-black">↓</span>
+              <span class="hidden sm:inline">Scroll mouse untuk Zoom In ke dalam rasa</span>
+              <span class="sm:hidden">Geser ke bawah untuk Zoom In</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Frame 2: Zooming Through the Molten Core (28% - 68% Scroll) -->
+        <div id="frame-text-2" class="absolute z-20 max-w-xl px-4 sm:px-6 text-center transition-all duration-700 ease-out opacity-0 pointer-events-none w-full flex flex-col items-center justify-between sm:justify-center h-[85vh] sm:h-auto pt-16 sm:pt-0 pb-16 sm:pb-0">
+          <div class="flex flex-col items-center">
+            <div class="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-[#F7F6E2] text-bakery-orange text-[10px] sm:text-xs font-mono font-bold tracking-widest uppercase mb-1.5 sm:mb-4 shadow-xl border border-orange-200">
+              <i data-lucide="sparkles" class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-bakery-orange"></i>
+              Sensasi Lumer & Crispy
+            </div>
+            <h2 class="text-xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-[#F7F6E2] leading-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
+              Menembus Lelehan <br/><span class="text-amber-300">Caramel & Callebaut</span>
+            </h2>
+          </div>
+
+          <div class="h-[210px] sm:h-0 w-full pointer-events-none"></div>
+
+          <div class="flex flex-col items-center">
+            <p class="text-[#F7F6E2] text-xs sm:text-base leading-relaxed font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] px-2">
+              Kamera meluncur masuk ke dalam tekstur lembut dan lumer. Rasakan aroma mentega Prancis asli di setiap detilnya.
+            </p>
+          </div>
+        </div>
+
+        <!-- Frame 3: Inside the Flavor Dimension (68% - 95% Scroll) -->
+        <div id="frame-text-3" class="absolute z-20 max-w-xl px-4 sm:px-6 text-center transition-all duration-700 ease-out opacity-0 pointer-events-none w-full flex flex-col items-center justify-between sm:justify-center h-[85vh] sm:h-auto pt-16 sm:pt-0 pb-16 sm:pb-0">
+          <div class="flex flex-col items-center">
+            <div class="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-[#F7F6E2] text-bakery-orange text-[10px] sm:text-xs font-mono font-bold tracking-widest uppercase mb-1.5 sm:mb-4 shadow-xl border border-orange-200">
+              <i data-lucide="heart" class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-bakery-orange"></i>
+              Kelezatan Sempurna
+            </div>
+            <h2 class="text-xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-[#F7F6E2] leading-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
+              Selamat Datang di
+            </h2>
+            <div class="my-1 sm:my-2 flex justify-center items-center">
+              <img src="./assets/logo-chewys-cream.png" alt="chewy's" class="h-8 sm:h-14 md:h-20 object-contain drop-shadow-[0_6px_20px_rgba(0,0,0,0.8)]" />
+            </div>
+          </div>
+
+          <div class="h-[210px] sm:h-0 w-full pointer-events-none"></div>
+
+          <div class="flex flex-col items-center">
+            <p class="text-[#F7F6E2] text-xs sm:text-base font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] px-2">
+              Gulir ke bawah untuk mendarat langsung ke katalog menu lengkap pilihan Anda.
+            </p>
+          </div>
+        </div>
+
+        <!-- Dive Into Menu Hint (Triggered when zoom reaches maximum) -->
+        <div id="dive-into-menu-hint" class="absolute bottom-20 sm:bottom-16 z-30 opacity-0 transition-opacity duration-500 pointer-events-none">
+          <button onclick="window.scrollToSection('menu')" class="px-5 sm:px-6 py-2.5 sm:py-3.5 rounded-full bg-[#F7F6E2] text-bakery-orange font-bold text-xs sm:text-sm shadow-2xl hover:scale-105 transition-all flex items-center gap-2 border border-orange-200">
+            <span>Lihat Menu Lengkap</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Bottom Scrolly Progress Indicator (Clean, without template text) -->
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-1.5 pointer-events-none">
+          <div class="w-32 sm:w-56 h-1 bg-white/30 rounded-full overflow-hidden backdrop-blur-md">
+            <div id="scrolly-progress-bar" class="h-full w-0 bg-white transition-all duration-300 ease-out"></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         SCENE 2: The Menu Exhibition (Warm Bakery Cream Background)
+         ========================================================================= -->
+    <section id="menu" class="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative z-20">
+      
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+        <div>
+          <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-100 text-bakery-orange text-xs font-mono font-bold tracking-widest uppercase mb-3 border border-orange-200">
+            <i data-lucide="coffee" class="w-3.5 h-3.5"></i>
+            Katalog Menu Favorit
+          </span>
+          <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-[#2D1406] flex items-center gap-3">
+            <span>Menu Pilihan</span>
+            <span class="font-brand text-3xl sm:text-5xl text-bakery-orange lowercase tracking-normal">chewy's</span>
+          </h2>
+          <p class="mt-2 text-stone-600 text-sm sm:text-base max-w-xl">
+            Dari Bomboloni Brulee Baby yang renyah karamelnya, hingga Fudgy Brookies dan minuman penyegar. Klik menu untuk pesan langsung!
+          </p>
+        </div>
+
+        <!-- Category Filters (Horizontal Scrollable on Mobile) -->
+        <div id="menu-category-filters" class="flex flex-nowrap overflow-x-auto no-scrollbar gap-2 pb-2 sm:pb-0 sm:flex-wrap -mx-4 px-4 sm:mx-0 sm:px-0">
+          <!-- Injected via src/main.js -->
+        </div>
+      </div>
+
+      <!-- Menu Grid -->
+      <div id="menu-items-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <!-- Injected via src/main.js -->
+      </div>
+
+      <!-- Transition Prompt to Outlets -->
+      <div class="mt-16 text-center">
+        <button onclick="window.scrollToSection('outlets')" class="inline-flex items-center gap-3 px-7 py-3.5 rounded-full bg-white border-2 border-orange-200 text-[#2D1406] text-sm font-bold shadow-md hover:border-bakery-orange hover:text-bakery-orange transition-all hover:scale-105">
+          <span>Sudah menentukan menu? Lanjut lihat Lokasi Cabang</span>
+          <i data-lucide="arrow-right" class="w-4 h-4 text-bakery-orange"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         SCENE 3: Outlets & Locations (Bali & Jakarta)
+         ========================================================================= -->
+    <section id="outlets" class="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-orange-100 relative z-20">
+      
+      <div class="text-center max-w-2xl mx-auto mb-12">
+        <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-100 text-bakery-orange text-xs font-mono font-bold tracking-widest uppercase mb-3 border border-orange-200">
+          <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+          Lokasi Gerai Kami
+        </span>
+        <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-[#2D1406]">
+          Kunjungi Gerai Kami
+        </h2>
+        <p class="mt-3 text-stone-600 text-sm sm:text-base">
+          Temukan suasana hangat Chewy's di Jakarta Selatan dan Bali, atau pesan via GoFood ke lokasimu saat ini.
+        </p>
+
+        <!-- City Switcher Pills -->
+        <div class="mt-8 inline-flex p-1.5 rounded-full bg-orange-100/70 border border-orange-200 gap-1">
+          <button data-store-id="jakarta" class="store-pill-btn px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold bg-bakery-orange text-white shadow-lg transition-all duration-300 flex items-center gap-2">
+            <i data-lucide="flame" class="w-4 h-4"></i>
+            Jakarta Selatan (Kemang)
+            <span class="bg-white/25 text-[10px] px-2 py-0.5 rounded-full">New</span>
+          </button>
+          <button data-store-id="bali" class="store-pill-btn px-5 py-2.5 rounded-full text-xs sm:text-sm font-semibold bg-white text-stone-600 hover:bg-orange-50 hover:text-bakery-orange transition-all duration-300 flex items-center gap-2 border border-orange-200">
+            <i data-lucide="sparkles" class="w-4 h-4 text-bakery-orange"></i>
+            Bali (Umalas)
+            <span class="bg-orange-100 text-[10px] px-2 py-0.5 rounded-full font-mono text-bakery-orange font-bold">Flagship</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Dynamic Store Display Card -->
+      <div id="store-display-card" class="max-w-4xl mx-auto">
+        <!-- Injected via src/main.js -->
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         The Craft & Founder's Story (Featuring Authentic Chewy's Box Photo)
+         ========================================================================= -->
+    <section id="story" class="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-orange-100 relative z-20">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        
+        <!-- Authentic Photo of Jennifer Coppen with Chewy's Signature Orange Boxes -->
+        <div class="lg:col-span-6">
+          <div class="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-bakery-orange aspect-square group box-orange-shadow">
+            <img src="./assets/chewys-box-jennifer.webp" alt="Jennifer Coppen with Chewy's Signature Boxes" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700">
+            
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-6">
+              <div>
+                <span class="font-mono text-xs uppercase tracking-widest text-bakery-orange font-bold block">Founder & Creator</span>
+                <h4 class="text-white text-2xl font-extrabold">Jennifer Coppen</h4>
+                <p class="text-white/80 text-xs mt-0.5">Signature Chewy's Orange Boxes · @chewysdessert</p>
+              </div>
+            </div>
+
+            <!-- Authentic Box Floating Badge -->
+            <div class="absolute top-4 right-4 bg-bakery-orange text-white px-4 py-1.5 rounded-full text-xs font-mono font-bold tracking-wider uppercase shadow-xl">
+              Official Chewy's Box
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-6 space-y-6">
+          <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-100 text-bakery-orange text-xs font-mono font-bold tracking-widest uppercase border border-orange-200">
+            <i data-lucide="heart" class="w-3.5 h-3.5"></i>
+            Kisah & Dedikasi Rasa
+          </span>
+
+          <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-[#2D1406] leading-tight">
+            Berawal dari Dapur Rumah, <br/>
+            <span class="text-bakery-orange">Kini Jadi Favorit di Bali & Jakarta.</span>
+          </h2>
+
+          <p class="text-stone-600 text-sm sm:text-base leading-relaxed">
+            Chewy's Dessert berawal dari kecintaan tulus Jennifer Coppen pada dunia baking. Dibuat sebagai wadah mencurahkan rasa dan kebahagiaan, setiap resep brownies, bomboloni, dan cookie diracik sendiri dengan 100% Real French Butter & cokelat Belgia murni.
+          </p>
+
+          <p class="text-stone-600 text-sm sm:text-base leading-relaxed">
+            Dikemas dalam <strong>Signature Box Oranye Chewy's</strong> yang ikonik dengan slogan <em>"A Treat For Every Moment"</em>, kini setiap boks menghadirkan senyum bagi ribuan pecinta dessert di Bali dan Jakarta.
+          </p>
+
+          <div class="p-6 rounded-2xl bg-white border-2 border-orange-100 shadow-sm flex items-start gap-4">
+            <div class="text-bakery-orange font-mono text-4xl leading-none">“</div>
+            <p class="text-xs sm:text-sm font-medium text-stone-700 italic leading-relaxed">
+              "Baking bagi saya adalah cara berbagi rasa cinta. Melihat senyum setiap orang yang mencicipi kerenyahan karamel atau lelehan cokelat Chewy's adalah kebahagiaan terbesar saya."
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Nationwide Shipping Banner (Signature Chewy's Box Orange Gradient) -->
+      <div class="mt-12 sm:mt-16 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-bakery-orange to-bakery-orange-deep text-white p-6 sm:p-12 shadow-2xl relative overflow-hidden">
+        <div class="relative z-10 max-w-2xl">
+          <span class="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1 rounded-full bg-white/20 text-white text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider mb-3 sm:mb-4 border border-white/30 backdrop-blur-md">
+            <i data-lucide="truck" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+            Kirim ke Seluruh Indonesia
+          </span>
+          <h3 class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+            Tinggal di Luar Bali & Jakarta?
+          </h3>
+          <p class="mt-2.5 sm:mt-3 text-white/90 text-xs sm:text-base leading-relaxed font-medium">
+            Khusus menu <strong>Fudge Brownies</strong>, <strong>Brookies</strong>, dan <strong>Chewy Cookies</strong> dipacking vacuum khusus dan aman dikirim dalam boks oranye resmi Chewy's via Shopee, Tokopedia, serta Paxel ke kota Anda.
+          </p>
+          <div class="mt-5 sm:mt-6 flex flex-col sm:flex-row flex-wrap gap-2.5 sm:gap-3">
+            <a href="https://shopee.co.id" target="_blank" rel="noopener noreferrer" class="px-5 py-2.5 rounded-full bg-white text-bakery-orange text-xs sm:text-sm font-bold hover:scale-105 transition-all shadow-lg text-center w-full sm:w-auto">
+              Order via Shopee
+            </a>
+            <a href="https://tokopedia.com" target="_blank" rel="noopener noreferrer" class="px-5 py-2.5 rounded-full bg-emerald-600 text-white text-xs sm:text-sm font-bold hover:scale-105 transition-all shadow-lg text-center w-full sm:w-auto">
+              Order via Tokopedia
+            </a>
+            <a href="https://api.whatsapp.com/send?phone=6282266288312&text=Halo%20Chewy's%20Dessert!%20Saya%20mau%20order%20pengiriman%20luar%20kota%20via%20Paxel/JNE%20YES." target="_blank" rel="noopener noreferrer" class="px-5 py-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white text-xs sm:text-sm font-semibold border border-white/40 transition-all text-center w-full sm:w-auto">
+              Hubungi WhatsApp Luar Kota
+            </a>
+          </div>
+        </div>
+
+        <div class="absolute right-0 bottom-0 top-0 hidden lg:flex items-center opacity-20 pointer-events-none p-12">
+          <i data-lucide="truck" class="w-64 h-64 text-white"></i>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- =========================================================================
+       Footer (Deep Chocolate & Chewy's Box Orange)
+       ========================================================================= -->
+  <footer class="bg-[#240F04] text-white py-12 sm:py-14 pb-28 lg:pb-14 px-4 sm:px-6 lg:px-8 border-t border-orange-950">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-10">
+      
+      <div class="md:col-span-2 space-y-4">
+        <div class="flex items-center gap-3">
+          <img src="./assets/logo-chewys-orange.png" alt="chewy's" class="h-8 object-contain" />
+          <span class="font-mono text-[9px] tracking-[0.2em] text-[#F7F6E2]/70 uppercase font-bold border-l border-white/20 pl-3">
+            A TREAT FOR EVERY MOMENT
+          </span>
+        </div>
+        <p class="text-stone-300 text-sm max-w-md leading-relaxed">
+          Freshly baked sweets just for you. Artisanal bomboloni, fudgy brownies, brookies, and thick chewy cookies. Freshly baked daily in Umalas Bali and Kemang Jakarta.
+        </p>
+        <p class="text-xs font-mono text-stone-400">
+          © 2026 chewy's dessert. Founded by Jennifer Coppen.
+        </p>
+      </div>
+
+      <div>
+        <h4 class="text-xs font-mono tracking-widest text-bakery-orange uppercase font-bold mb-4">Outlets</h4>
+        <ul class="space-y-3 text-sm text-stone-300">
+          <li>
+            <strong class="text-white block">Jakarta Selatan:</strong>
+            Jl. Kemang Utara B No. 33e (depan Taman Palada)
+          </li>
+          <li>
+            <strong class="text-white block">Bali Flagship:</strong>
+            Jl. Bumbak Dauh No. 3A, Umalas, Kerobokan
+          </li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="text-xs font-mono tracking-widest text-bakery-orange uppercase font-bold mb-4">Social & VIP Order</h4>
+        <ul class="space-y-2 text-sm text-stone-300">
+          <li>
+            <a href="https://api.whatsapp.com/send?phone=6282266288312" target="_blank" rel="noopener noreferrer" class="hover:text-bakery-orange transition-colors flex items-center gap-2">
+              <i data-lucide="phone" class="w-4 h-4 text-bakery-orange"></i> WhatsApp VIP: 0822-6628-8312
+            </a>
+          </li>
+          <li>
+            <a href="https://www.instagram.com/chewysdessert/" target="_blank" rel="noopener noreferrer" class="hover:text-bakery-orange transition-colors flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-4 h-4 text-bakery-orange"></i> @chewysdessert
+            </a>
+          </li>
+          <li>
+            <a href="https://linktr.ee/chewysbites" target="_blank" rel="noopener noreferrer" class="hover:text-bakery-orange transition-colors flex items-center gap-2">
+              <i data-lucide="external-link" class="w-4 h-4 text-bakery-orange"></i> linktr.ee/chewysbites
+            </a>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- =========================================================================
+       Mobile Floating Bottom Navigation Bar (Thumb-Friendly Dock)
+       ========================================================================= -->
+  <aside class="lg:hidden fixed bottom-3 inset-x-3 z-40 pb-safe pointer-events-auto">
+    <div class="glass-panel-light rounded-2xl px-2 py-1.5 shadow-2xl border border-orange-200/90 flex items-center justify-around text-center">
+      
+      <button onclick="window.scrollToSection('scrolly-section')" class="flex flex-col items-center gap-0.5 text-[#2D1406] hover:text-bakery-orange transition-colors active:scale-95 py-1 px-3">
+        <i data-lucide="sparkles" class="w-4 h-4 text-bakery-orange"></i>
+        <span class="text-[10px] font-bold">Beranda</span>
+      </button>
+
+      <button onclick="window.scrollToSection('menu')" class="flex flex-col items-center gap-0.5 text-[#2D1406] hover:text-bakery-orange transition-colors active:scale-95 py-1 px-3">
+        <i data-lucide="utensils" class="w-4 h-4 text-bakery-orange"></i>
+        <span class="text-[10px] font-bold">Menu</span>
+      </button>
+
+      <button onclick="window.scrollToSection('outlets')" class="flex flex-col items-center gap-0.5 text-[#2D1406] hover:text-bakery-orange transition-colors active:scale-95 py-1 px-3">
+        <i data-lucide="map-pin" class="w-4 h-4 text-bakery-orange"></i>
+        <span class="text-[10px] font-bold">Gerai</span>
+      </button>
+
+      <a href="https://api.whatsapp.com/send?phone=6282266288312&text=Halo%20Chewy's%20Dessert!%20Saya%20ingin%20pesan%20menu%20favorit." target="_blank" rel="noopener noreferrer" class="flex flex-col items-center gap-0.5 text-emerald-700 hover:text-emerald-800 transition-colors active:scale-95 py-1 px-3">
+        <i data-lucide="phone" class="w-4 h-4 text-emerald-600"></i>
+        <span class="text-[10px] font-bold">Pesan WA</span>
+      </a>
+
+    </div>
+  </aside>
+
+  <!-- =========================================================================
+       Quick View & Order Modal
+       ========================================================================= -->
+  <div id="order-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+    <div id="modal-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"></div>
+
+    <div class="relative w-full max-w-xl bg-white text-[#2D1406] rounded-3xl shadow-2xl overflow-hidden border-2 border-orange-200 z-10 animate-in fade-in zoom-in-95 duration-200">
+      
+      <button onclick="window.closeQuickView()" class="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black transition-all">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="relative aspect-[16/10] bg-stone-100 overflow-hidden">
+        <img id="modal-img" src="" alt="Menu item" class="w-full h-full object-cover">
+        <div class="absolute bottom-3 left-3 flex gap-2">
+          <span id="modal-tag" class="px-3 py-1 rounded-full text-xs font-bold uppercase bg-bakery-orange text-white shadow-md"></span>
+          <span id="modal-shipping-badge" class="hidden items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white shadow-md">
+            <i data-lucide="truck" class="w-3.5 h-3.5"></i> Aman Kirim Luar Kota
+          </span>
+        </div>
+      </div>
+
+      <div class="p-6 sm:p-8 space-y-4">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 id="modal-title" class="text-2xl font-extrabold text-[#2D1406]"></h3>
+            <p id="modal-bundle" class="text-xs font-mono text-stone-500 mt-0.5"></p>
+          </div>
+          <span id="modal-price" class="text-xl font-mono font-extrabold text-bakery-orange"></span>
+        </div>
+
+        <p id="modal-desc" class="text-sm text-stone-600 leading-relaxed"></p>
+
+        <div class="p-3.5 rounded-xl bg-orange-50 border border-orange-200 text-xs font-mono text-stone-700 flex items-center gap-2">
+          <i data-lucide="sparkles" class="w-4 h-4 text-bakery-orange shrink-0"></i>
+          <span id="modal-texture"></span>
+        </div>
+
+        <!-- Quantity Stepper -->
+        <div class="flex items-center justify-between pt-2 border-t border-orange-100">
+          <span class="text-xs font-mono uppercase font-bold text-stone-500">Jumlah Pesanan</span>
+          <div class="flex items-center gap-3 bg-orange-50 p-1.5 rounded-full border border-orange-200">
+            <button onclick="window.changeModalQty(-1)" class="w-7 h-7 rounded-full bg-white flex items-center justify-center text-stone-700 hover:bg-stone-200">
+              <i data-lucide="minus" class="w-3.5 h-3.5"></i>
+            </button>
+            <span id="modal-qty-display" class="font-mono font-bold text-sm px-2 text-[#2D1406]">1</span>
+            <button onclick="window.changeModalQty(1)" class="w-7 h-7 rounded-full bg-white flex items-center justify-center text-stone-700 hover:bg-stone-200">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <a id="modal-wa-btn" href="#" target="_blank" rel="noopener noreferrer" class="w-full py-3 px-4 rounded-full bg-bakery-orange text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 hover:bg-bakery-orange-hover transition-all shadow-md shadow-bakery-orange/40">
+            <i data-lucide="phone" class="w-4 h-4"></i>
+            Pesan via WhatsApp
+          </a>
+
+          <a id="modal-gofood-btn" href="#" target="_blank" rel="noopener noreferrer" class="w-full py-3 px-4 rounded-full bg-emerald-600 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-md">
+            <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+            Pesan di GoFood
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

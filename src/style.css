@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Shrikhand&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: auto;
+    background-color: #FFF8F2;
+    color: #2D1406;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+}
+
+.font-brand {
+  font-family: 'Shrikhand', cursive, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Lenis smooth scroll */
+html.lenis, html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+/* Custom Scrollbar in Signature Chewy's Orange */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #FFF0E6;
+}
+::-webkit-scrollbar-thumb {
+  background: #FD5F29;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #E04510;
+}
+
+/* Glassmorphism */
+.glass-panel-light {
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(253, 95, 41, 0.15);
+}
+
+.glass-panel-orange {
+  background: rgba(253, 95, 41, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Box Shadows & Accents */
+.chewys-shadow {
+  box-shadow: 0 16px 36px -10px rgba(253, 95, 41, 0.35);
+}
+
+.chewys-box-card {
+  background: #FFFFFF;
+  border: 2px solid #FFE4D6;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.chewys-box-card:hover {
+  border-color: #FD5F29;
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -15px rgba(253, 95, 41, 0.25);
+}
+
+/* Hide scrollbar utility for mobile touch carousels */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Mobile Safe Area & Touch Optimizations */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

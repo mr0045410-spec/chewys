@@ -1,0 +1,9 @@
+# Video rekaman layar lokal (sangat besar >400MB)
+*.mp4
+!assets/hero-scrub.mp4
+
+# File sistem & temporary
+node_modules/
+.DS_Store
+Thumbs.db
+*.log

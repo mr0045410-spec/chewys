@@ -1,0 +1,206 @@
+{
+  "categories": [
+    {
+      "id": "all",
+      "name": "All Sweets"
+    },
+    {
+      "id": "bomboloni",
+      "name": "Signature Bomboloni"
+    },
+    {
+      "id": "brownies",
+      "name": "Brownies & Brookies"
+    },
+    {
+      "id": "cookies",
+      "name": "Chewy Cookies"
+    },
+    {
+      "id": "beverages",
+      "name": "Drinks & Coffee"
+    }
+  ],
+  "menuItems": [
+    {
+      "id": "brulee-baby",
+      "name": "Brulee Baby",
+      "category": "bomboloni",
+      "tag": "Best Seller · Viral",
+      "description": "Crispy caramelized torched sugar exterior with silky French vanilla bean pastry cream filling.",
+      "price": "Rp 28.000",
+      "bundleInfo": "Available in Box of 3 (Rp 80.000) & Box of 6 (Rp 155.000)",
+      "safeForShipping": false,
+      "inStock": true,
+      "image": "./assets/uploads/brulee-baby-1790635494966.png",
+      "highlightTexture": "Glass-like caramel crunch · Silky custard core",
+      "stockQty": 23,
+      "costPrice": 6585
+    },
+    {
+      "id": "brookie-signature",
+      "name": "The Original Brookie",
+      "category": "brownies",
+      "tag": "Signature · Must Try",
+      "description": "The ultimate hybrid: deep rich fudgy dark chocolate brownie baked under a chewy chocolate chip cookie crust.",
+      "price": "Rp 35.000",
+      "bundleInfo": "Box of 4 available",
+      "safeForShipping": true,
+      "inStock": true,
+      "image": "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=700&q=80",
+      "highlightTexture": "Chewy cookie top · Fudgy decadent bottom",
+      "stockQty": 24,
+      "costPrice": 13500
+    },
+    {
+      "id": "og-fudge-brownie",
+      "name": "OG Fudgy Brownie",
+      "category": "brownies",
+      "tag": "Classic Favorite",
+      "description": "Crafted with 70% dark cocoa and real French butter. Crisp paper-thin shiny crust with an intensely dense, gooey center.",
+      "price": "Rp 32.000",
+      "bundleInfo": "Pair with Vanilla Ice Cream (+Rp 12.000)",
+      "safeForShipping": true,
+      "inStock": true,
+      "image": "https://images.unsplash.com/photo-1589218436045-ee320057f443?auto=format&fit=crop&w=700&q=80",
+      "highlightTexture": "Ultra fudgy · Melts on your tongue",
+      "stockQty": 22,
+      "costPrice": 12000
+    },
+    {
+      "id": "kyoto-kiss",
+      "name": "Kyoto Kiss Bomboloni",
+      "category": "bomboloni",
+      "tag": "Matcha Lover",
+      "description": "Pillow-soft Italian doughnut bursting with bittersweet authentic Japanese Uji matcha diplomatic cream.",
+      "price": "Rp 30.000",
+      "bundleInfo": "Available in Box of 3 & Box of 6",
+      "safeForShipping": false,
+      "inStock": true,
+      "image": "https://images.unsplash.com/photo-1527515862127-a4fc05baf7a5?auto=format&fit=crop&w=700&q=80",
+      "highlightTexture": "Airy soft cloud · Earthy matcha cream",
+      "stockQty": 21,
+      "costPrice": 11500
+    },
+    {
+      "id": "bloom-berry",
+      "name": "Bloom Berry",
+      "category": "bomboloni",
+      "tag": "Fresh & Tangy",
+      "description": "Fresh berry infused dough filled with vibrant raspberry strawberry cream and berry dust.",
+      "price": "Rp 28.000",
+      "bundleInfo": "Available in Box of 3 & Box of 6",
+      "safeForShipping": false,
+      "inStock": true,
+      "image": "./assets/uploads/bloom-berry-1790260129986.jpg",
+      "highlightTexture": "Tart berry pop · Velvety cream",
+      "stockQty": 25,
+      "costPrice": 10500
+    },
+    {
+      "id": "smore-love",
+      "name": "S'More Love Bomboloni",
+      "category": "bomboloni",
+      "tag": "Campfire Nostalgia",
+      "description": "Torched homemade marshmallow fluff, milk chocolate ganache, and golden graham crumb crunch.",
+      "price": "Rp 30.000",
+      "bundleInfo": "Available in Box of 3 & Box of 6",
+      "safeForShipping": false,
+      "inStock": true,
+      "image": "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&w=700&q=80",
+      "highlightTexture": "Gooey toasted mallow · Creamy chocolate",
+      "stockQty": 25,
+      "costPrice": 11500
+    },
+    {
+      "id": "lotus-biscoff-brownie",
+      "name": "Lotus Biscoff Brownie",
+      "category": "brownies",
+      "tag": "Customer Pick",
+      "description": "Fudge brownie layered with generous swirls of Belgian Lotus Biscoff spread and topped with whole crunchy biscuits.",
+      "price": "Rp 36.000",
+      "bundleInfo": "Nationwide delivery safe",
+      "safeForShipping": true,
+      "inStock": true,
+      "image": "https://images.unsplash.com/photo-1579372786545-d24232daf58c?auto=format&fit=crop&w=700&q=80",
+      "highlightTexture": "Spiced caramel biscuit · Gooey chocolate",
+      "stockQty": 20,
+      "costPrice": 13500
+    },
+    {
+      "id": "og-chewy-cookie",
+      "name": "OG Choc Chip Cookie",
+      "category": "cookies",
+      "tag": "Freshly Baked",
+      "description": "The golden standard: buttery dough aged 24 hours, studded with Belgian semi-sweet chunks and sea salt flakes.",
+      "price": "Rp 25.000",
+      "bundleInfo": "Pack of 3 / 6 available",
+      "safeForShipping": true,
+      "inStock": true,
+      "image": "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=700&q=80",
+      "highlightTexture": "Crispy browned butter edge · Chewy soft center",
+      "stockQty": 16,
+      "costPrice": 9500
+    },
+    {
+      "id": "matcha-white-cookie",
+      "name": "Matcha White Choc Cookie",
+      "category": "cookies",
+      "tag": "Uji Matcha",
+      "description": "Earthy green tea cookie dough folded with premium melted Belgian white chocolate pockets.",
+      "price": "Rp 27.000",
+      "bundleInfo": "Pack of 3 / 6 available",
+      "safeForShipping": true,
+      "inStock": true,
+      "image": "https://images.unsplash.com/photo-1590080875515-8a3a8dc5735e?auto=format&fit=crop&w=700&q=80",
+      "highlightTexture": "Tender crumb · Sweet milky pockets",
+      "stockQty": 25,
+      "costPrice": 10500
+    },
+    {
+      "id": "kopi-gula-aren",
+      "name": "Chewy's Kopi Gula Aren",
+      "category": "beverages",
+      "tag": "House Coffee",
+      "description": "Double shot Bali Kintamani espresso combined with creamy fresh milk and organic aromatic palm sugar.",
+      "price": "Rp 28.000",
+      "bundleInfo": "100% Arabica Blend",
+      "safeForShipping": false,
+      "inStock": true,
+      "image": "https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?auto=format&fit=crop&w=700&q=80",
+      "highlightTexture": "Smooth caramel notes · Creamy balanced roast",
+      "stockQty": 25,
+      "costPrice": 10500
+    },
+    {
+      "id": "strawberry-matcha",
+      "name": "Strawberry Matcha Cloud",
+      "category": "beverages",
+      "tag": "Signature Drink",
+      "description": "Handcrafted real strawberry compote base topped with chilled milk and vibrant ceremonial matcha froth.",
+      "price": "Rp 34.000",
+      "bundleInfo": "Non-coffee favorite",
+      "safeForShipping": false,
+      "inStock": true,
+      "image": "https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=700&q=80",
+      "highlightTexture": "Layered aesthetic · Fruity meets matcha richness",
+      "stockQty": 25,
+      "costPrice": 13000
+    },
+    {
+      "id": "cookie-crumble-shake",
+      "name": "Thick Cookie Crumble Shake",
+      "category": "beverages",
+      "tag": "Indulgent Treat",
+      "description": "Whole Chewys OG cookies blended into artisanal vanilla gelato, topped with dark chocolate drizzle and cookie dust.",
+      "price": "Rp 38.000",
+      "bundleInfo": "Ultimate sweet pair",
+      "safeForShipping": false,
+      "inStock": true,
+      "image": "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=700&q=80",
+      "highlightTexture": "Frosty thick blend · Crunchy cookie chunks",
+      "stockQty": 25,
+      "costPrice": 14500
+    }
+  ]
+}
