@@ -184,13 +184,32 @@ function initCanvasImageSequence() {
     setTimeout(loadNextBatch, 60);
   }
 
-  // GSAP ScrollTrigger Scrubbing on Canvas
+  // High-performance scroll handler (both direct listener and ScrollTrigger for absolute 60-120 FPS reliability)
+  function handleDirectScroll() {
+    const rect = scrollySection.getBoundingClientRect();
+    const scrollDist = -rect.top;
+    const totalDist = rect.height - window.innerHeight;
+    if (totalDist <= 0) return;
+    const progress = Math.max(0, Math.min(1, scrollDist / totalDist));
+    const frameIdx = Math.min(
+      frameNumbers.length - 1,
+      Math.max(0, Math.floor(progress * (frameNumbers.length - 1)))
+    );
+    if (frameIdx !== currentFrameIndex) {
+      currentFrameIndex = frameIdx;
+      renderFrame(frameIdx);
+      updateZoomOverlays(progress);
+    }
+  }
+
+  window.addEventListener('scroll', handleDirectScroll, { passive: true });
+
   if (ScrollTrigger) {
     ScrollTrigger.create({
       trigger: scrollySection,
       start: 'top top',
       end: 'bottom bottom',
-      scrub: isTouchDevice ? true : 0.1, // Instant 1:1 on touch, slight smooth on desktop
+      scrub: isTouchDevice ? true : 0.1,
       onUpdate: (self) => {
         const frameIdx = Math.min(
           frameNumbers.length - 1,
@@ -201,20 +220,7 @@ function initCanvasImageSequence() {
         updateZoomOverlays(self.progress);
       }
     });
-  } else {
-    window.addEventListener('scroll', () => {
-      const rect = scrollySection.getBoundingClientRect();
-      const scrollDist = -rect.top;
-      const totalDist = rect.height - window.innerHeight;
-      const progress = Math.max(0, Math.min(1, scrollDist / totalDist));
-      const frameIdx = Math.min(
-        frameNumbers.length - 1,
-        Math.max(0, Math.floor(progress * (frameNumbers.length - 1)))
-      );
-      currentFrameIndex = frameIdx;
-      renderFrame(frameIdx);
-      updateZoomOverlays(progress);
-    }, { passive: true });
+    ScrollTrigger.refresh();
   }
 
   initSceneSpy();

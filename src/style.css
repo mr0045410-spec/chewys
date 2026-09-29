@@ -15,12 +15,12 @@
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
   body {
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
     position: relative;
     background-color: #FFF8F2;
   }
