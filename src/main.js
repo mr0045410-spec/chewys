@@ -237,25 +237,21 @@ function updateZoomOverlays(progress) {
     progressBar.style.width = `${progress * 100}%`;
   }
 
-  function setOverlay(el, show, scaleUp = false) {
+  function setOverlay(el, show) {
     if (!el) return;
     if (show) {
       el.classList.remove('opacity-0', 'pointer-events-none');
       el.classList.add('opacity-100', 'pointer-events-auto');
-      if (scaleUp) {
-        el.style.transform = 'scale(1.08) translateY(-10px)';
-      } else {
-        el.style.transform = 'scale(1) translateY(0px)';
-      }
+      el.style.transform = 'translateY(0px)';
     } else {
       el.classList.remove('opacity-100', 'pointer-events-auto');
       el.classList.add('opacity-0', 'pointer-events-none');
-      el.style.transform = 'scale(0.9) translateY(20px)';
+      el.style.transform = 'translateY(8px)';
     }
   }
 
   setOverlay(f1, progress >= 0 && progress < 0.32);
-  setOverlay(f2, progress >= 0.32 && progress < 0.68, true);
+  setOverlay(f2, progress >= 0.32 && progress < 0.68);
   setOverlay(f3, progress >= 0.68 && progress < 0.94);
 
   if (diveHint) {
