@@ -5,11 +5,24 @@
 @tailwind utilities;
 
 @layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
   html {
     scroll-behavior: auto;
-    background-color: #FFF8F2;
+    background-color: #FD5F29; /* Match scrolly-section to eliminate any white gap flash */
     color: #2D1406;
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    position: relative;
+    background-color: #FFF8F2;
   }
 }
 

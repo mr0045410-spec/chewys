@@ -85,8 +85,12 @@ function initCanvasImageSequence() {
 
   function resizeCanvas() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = window.innerWidth * dpr;
-    canvas.height = window.innerHeight * dpr;
+    const clientW = document.documentElement.clientWidth || window.innerWidth;
+    const clientH = window.innerHeight;
+    canvas.width = Math.round(clientW * dpr);
+    canvas.height = Math.round(clientH * dpr);
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
     renderFrame(currentFrameIndex);
   }
 
@@ -114,15 +118,32 @@ function initCanvasImageSequence() {
     const imgWidth = img.naturalWidth || 1920;
     const imgHeight = img.naturalHeight || 1080;
 
-    // Fullscreen cinematic cover fit for both mobile & desktop
-    const hRatio = canvasWidth / imgWidth;
-    const vRatio = canvasHeight / imgHeight;
-    const ratio = Math.max(hRatio, vRatio);
+    const isPortrait = canvasWidth / canvasHeight < 1.15;
 
-    const drawW = imgWidth * ratio;
-    const drawH = imgHeight * ratio;
-    const shiftX = (canvasWidth - drawW) / 2;
-    const shiftY = (canvasHeight - drawH) / 2;
+    let drawW, drawH, shiftX, shiftY;
+
+    if (isPortrait) {
+      // Mobile Portrait: Tampilkan 100% video utuh tanpa terpotong (Jennifer, Oven & Keluarga terlihat utuh)
+      ctx.fillStyle = '#FD5F29';
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+      const ratio = canvasWidth / imgWidth;
+      drawW = canvasWidth;
+      drawH = imgHeight * ratio;
+      shiftX = 0;
+      // Vertically centered in the viewport
+      shiftY = (canvasHeight - drawH) / 2;
+    } else {
+      // Desktop / Landscape: Fullscreen Cinematic Cover
+      const hRatio = canvasWidth / imgWidth;
+      const vRatio = canvasHeight / imgHeight;
+      const ratio = Math.max(hRatio, vRatio);
+
+      drawW = imgWidth * ratio;
+      drawH = imgHeight * ratio;
+      shiftX = (canvasWidth - drawW) / 2;
+      shiftY = (canvasHeight - drawH) / 2;
+    }
 
     ctx.drawImage(img, 0, 0, imgWidth, imgHeight, shiftX, shiftY, drawW, drawH);
   }
