@@ -12,8 +12,11 @@ if (gsap && ScrollTrigger) {
 /* ==========================================================================
    1. Lenis Smooth Scroll Setup
    ========================================================================== */
+const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth < 768);
+
 let lenis = null;
-if (Lenis) {
+// Enable Lenis only on desktop to let mobile devices use native 120Hz momentum scroll without lag
+if (Lenis && !isTouchDevice) {
   lenis = new Lenis({
     duration: 1.2,
     easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -55,7 +58,7 @@ let modalItem = null;
 let modalQty = 1;
 
 /* ==========================================================================
-   3. Apple-Style Canvas Image Sequence Engine (60-120 FPS Ultra Smooth)
+   3. Apple-Style Canvas Image Sequence Engine (Optimized & Responsive)
    ========================================================================== */
 function initCanvasImageSequence() {
   const canvas = document.getElementById('scrolly-canvas');
@@ -64,11 +67,21 @@ function initCanvasImageSequence() {
   const ctx = canvas.getContext('2d');
 
   const FRAME_COUNT = 955;
-  const images = [];
+  // Subsample frames: mobile step 8 (~120 frames, ~12MB) to prevent RAM/GPU choke; desktop step 3 (~318 frames)
+  const step = isTouchDevice ? 8 : 3;
+  const frameNumbers = [];
+  for (let i = 1; i <= FRAME_COUNT; i += step) {
+    frameNumbers.push(i);
+  }
+  if (frameNumbers[frameNumbers.length - 1] !== FRAME_COUNT) {
+    frameNumbers.push(FRAME_COUNT);
+  }
+
+  const images = new Array(frameNumbers.length);
   let currentFrameIndex = 0;
 
   // Generate frame URL: ./assets/frames/frame_001.jpg -> frame_955.jpg
-  const getFrameUrl = (idx) => `./assets/frames/frame_${String(idx).padStart(3, '0')}.jpg`;
+  const getFrameUrl = (frameNum) => `./assets/frames/frame_${String(frameNum).padStart(3, '0')}.jpg`;
 
   function resizeCanvas() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -83,7 +96,7 @@ function initCanvasImageSequence() {
     let img = images[index];
     // Fallback to nearest loaded frame if current frame is still caching
     if (!img || !img.complete) {
-      for (let offset = 1; offset <= 25; offset++) {
+      for (let offset = 1; offset <= 20; offset++) {
         if (images[index - offset] && images[index - offset].complete) {
           img = images[index - offset];
           break;
@@ -94,54 +107,60 @@ function initCanvasImageSequence() {
         }
       }
     }
-    if (!img || !img.complete) return;
+    if (!img || !img.complete || img.naturalWidth === 0) return;
 
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     const imgWidth = img.naturalWidth || 1920;
     const imgHeight = img.naturalHeight || 1080;
 
-    const isPortrait = canvasWidth / canvasHeight < 1.15;
+    // Fullscreen cinematic cover fit for both mobile & desktop
+    const hRatio = canvasWidth / imgWidth;
+    const vRatio = canvasHeight / imgHeight;
+    const ratio = Math.max(hRatio, vRatio);
 
-    let drawW, drawH, shiftX, shiftY;
-
-    if (isPortrait) {
-      // Option 2: Mobile Portrait - 100% Full View of Jennifer, Oven, Husband & Child without crop
-      ctx.fillStyle = '#FE6134';
-      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-      const ratio = canvasWidth / imgWidth;
-      drawW = canvasWidth;
-      drawH = imgHeight * ratio;
-      shiftX = 0;
-      // Vertically centered
-      shiftY = (canvasHeight - drawH) / 2;
-    } else {
-      // Desktop / Landscape - Fullscreen Cover
-      const hRatio = canvasWidth / imgWidth;
-      const vRatio = canvasHeight / imgHeight;
-      const ratio = Math.max(hRatio, vRatio);
-
-      drawW = imgWidth * ratio;
-      drawH = imgHeight * ratio;
-      shiftX = (canvasWidth - drawW) / 2;
-      shiftY = (canvasHeight - drawH) / 2;
-    }
+    const drawW = imgWidth * ratio;
+    const drawH = imgHeight * ratio;
+    const shiftX = (canvasWidth - drawW) / 2;
+    const shiftY = (canvasHeight - drawH) / 2;
 
     ctx.drawImage(img, 0, 0, imgWidth, imgHeight, shiftX, shiftY, drawW, drawH);
   }
 
-  // Preload all 241 frames into memory
-  for (let i = 1; i <= FRAME_COUNT; i++) {
-    const img = new Image();
-    img.src = getFrameUrl(i);
-    if (i === 1) {
-      img.onload = () => {
-        resizeCanvas();
-        renderFrame(0);
-      };
+  // Preload frame 1 immediately for instant first paint
+  const firstImg = new Image();
+  firstImg.src = getFrameUrl(frameNumbers[0]);
+  firstImg.onload = () => {
+    images[0] = firstImg;
+    resizeCanvas();
+    renderFrame(0);
+  };
+  images[0] = firstImg;
+
+  // Progressively load remaining frames in small batches so browser thread stays fluid
+  let currentLoadIdx = 1;
+  function loadNextBatch() {
+    const batchSize = isTouchDevice ? 6 : 12;
+    const end = Math.min(frameNumbers.length, currentLoadIdx + batchSize);
+    for (let i = currentLoadIdx; i < end; i++) {
+      const img = new Image();
+      img.src = getFrameUrl(frameNumbers[i]);
+      images[i] = img;
     }
-    images.push(img);
+    currentLoadIdx = end;
+    if (currentLoadIdx < frameNumbers.length) {
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(loadNextBatch);
+      } else {
+        setTimeout(loadNextBatch, 30);
+      }
+    }
+  }
+
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(loadNextBatch);
+  } else {
+    setTimeout(loadNextBatch, 60);
   }
 
   // GSAP ScrollTrigger Scrubbing on Canvas
@@ -150,11 +169,11 @@ function initCanvasImageSequence() {
       trigger: scrollySection,
       start: 'top top',
       end: 'bottom bottom',
-      scrub: 0.1, // Super tight, instant 60 FPS response
+      scrub: isTouchDevice ? true : 0.1, // Instant 1:1 on touch, slight smooth on desktop
       onUpdate: (self) => {
         const frameIdx = Math.min(
-          FRAME_COUNT - 1,
-          Math.max(0, Math.floor(self.progress * (FRAME_COUNT - 1)))
+          frameNumbers.length - 1,
+          Math.max(0, Math.floor(self.progress * (frameNumbers.length - 1)))
         );
         currentFrameIndex = frameIdx;
         renderFrame(frameIdx);
@@ -168,13 +187,13 @@ function initCanvasImageSequence() {
       const totalDist = rect.height - window.innerHeight;
       const progress = Math.max(0, Math.min(1, scrollDist / totalDist));
       const frameIdx = Math.min(
-        FRAME_COUNT - 1,
-        Math.max(0, Math.floor(progress * (FRAME_COUNT - 1)))
+        frameNumbers.length - 1,
+        Math.max(0, Math.floor(progress * (frameNumbers.length - 1)))
       );
       currentFrameIndex = frameIdx;
       renderFrame(frameIdx);
       updateZoomOverlays(progress);
-    });
+    }, { passive: true });
   }
 
   initSceneSpy();
