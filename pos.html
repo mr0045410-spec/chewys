@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+  <script src="api-shim.js"></script>
+  <!-- api-shim: ganti /api/* dgn localStorage (perbaikan persistensi utk hosting statis) -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Kasir POS · Chewy's Dessert & Coffee</title>
@@ -1182,6 +1184,10 @@
       cart = [];
       activeCompletedOrder = null;
       document.getElementById('order-table-customer').value = '';
+      // Reset diskon ke 0% agar tidak terbawa ke transaksi berikutnya (BUG-5)
+      discountRate = 0;
+      var _ds = document.getElementById('discount-select');
+      if (_ds) _ds.value = '0';
       document.getElementById('receipt-modal').classList.add('hidden');
       renderCart();
       renderProducts();
