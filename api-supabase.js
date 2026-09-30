@@ -1641,14 +1641,14 @@
     }).catch(serverError);
   };
 
-  // 41. POST /api/owner/purchase-orders/receive — {id, paid: 'cash'|'credit'}
+  // 41. POST /api/owner/purchase-orders/receive — {id, paid: 'cash'|'credit' atau true|false (dari UI)}
   //     sent -> received: tambah stok bahan, stock_logs IN_PURCHASE,
   //     jurnal Dr 1200 / Cr 1100 (tunai) atau Cr 2100 (kredit).
   routes['POST /api/owner/purchase-orders/receive'] = function (body) {
     return needAccounting().then(function (blocked) {
       if (blocked) return blocked;
       if (!body.id) return bad({ success: false, message: 'ID PO wajib diisi' });
-      var paid = body.paid === 'credit' ? 'credit' : 'cash';
+      var paid = (body.paid === 'credit' || body.paid === false) ? 'credit' : 'cash';
       return sel('purchase_orders', 'select=*&id=eq.' + encodeURIComponent(body.id)).then(function (pr) {
         if (!pr.length) return notFound({ success: false, message: 'PO tidak ditemukan' });
         var po = pr[0];
