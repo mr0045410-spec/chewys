@@ -184,6 +184,10 @@
           <span>Stok Bahan Baku & Resep (BOM)</span>
           <span id="tab-inventory-alert-badge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white animate-pulse">0 Alert</span>
         </button>
+        <button onclick="switchOwnerView('staff')" id="view-tab-staff" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all">
+          <i data-lucide="users" class="w-4 h-4 text-bakery-orange"></i>
+          <span>Pegawai & Shift</span>
+        </button>
       </div>
 
       <div id="inventory-top-actions" class="hidden flex flex-wrap items-center gap-2">
@@ -664,6 +668,81 @@
     </div>
     <!-- END VIEW 2: INVENTORY -->
 
+    <!-- VIEW 3: PEGAWAI & SHIFT KASIR -->
+    <div id="owner-view-staff" class="hidden space-y-6">
+
+      <!-- Section: Daftar Pegawai -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+              <i data-lucide="users" class="w-5 h-5 text-bakery-orange"></i>
+              Daftar Pegawai
+            </h3>
+            <p class="text-[11px] text-stone-400 mt-0.5">PIN dipakai untuk buka shift di kasir. PIN tersimpan sebagai hash, bukan teks asli.</p>
+          </div>
+          <button onclick="openEmployeeModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-xs font-bold shadow-xs transition-colors">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>Tambah Pegawai</span>
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-left text-stone-400 uppercase text-[10px] tracking-wider border-b border-stone-100">
+                <th class="py-2 pr-3 font-bold">Nama</th>
+                <th class="py-2 pr-3 font-bold">Role</th>
+                <th class="py-2 pr-3 font-bold">Status</th>
+                <th class="py-2 pr-3 font-bold text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="staff-employee-list">
+              <tr><td colspan="4" class="py-6 text-center text-stone-400">Memuat...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section: Riwayat Shift -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+              <i data-lucide="clipboard-list" class="w-5 h-5 text-bakery-orange"></i>
+              Riwayat Shift & Opname Kas
+            </h3>
+            <p class="text-[11px] text-stone-400 mt-0.5">Selisih = kas fisik − kas harapan (modal awal + penjualan tunai).</p>
+          </div>
+          <button onclick="loadStaffData()" class="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 transition-colors" title="Muat ulang">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <div id="staff-open-shift-note"></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-left text-stone-400 uppercase text-[10px] tracking-wider border-b border-stone-100">
+                <th class="py-2 pr-3 font-bold">Pegawai</th>
+                <th class="py-2 pr-3 font-bold">Buka</th>
+                <th class="py-2 pr-3 font-bold">Tutup</th>
+                <th class="py-2 pr-3 font-bold text-right">Modal Awal</th>
+                <th class="py-2 pr-3 font-bold text-right">Jual Tunai</th>
+                <th class="py-2 pr-3 font-bold text-right">Kas Harapan</th>
+                <th class="py-2 pr-3 font-bold text-right">Kas Fisik</th>
+                <th class="py-2 pr-3 font-bold text-right">Selisih</th>
+                <th class="py-2 font-bold">Catatan</th>
+              </tr>
+            </thead>
+            <tbody id="staff-shift-list">
+              <tr><td colspan="9" class="py-6 text-center text-stone-400">Memuat...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+    <!-- END VIEW 3: STAFF -->
+
   </main>
 
   <!-- =========================================================================
@@ -1062,6 +1141,49 @@
           <button type="submit" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold shadow-md transition-colors flex items-center justify-center gap-1.5">
             <i data-lucide="check" class="w-4 h-4"></i>
             <span>Potong Stok & Simpan</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: TAMBAH / EDIT PEGAWAI
+       ========================================================================= -->
+  <div id="employee-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
+    <div class="w-full max-w-sm bg-white rounded-3xl p-5 sm:p-6 shadow-2xl border border-stone-200">
+      <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+        <h4 id="employee-modal-title" class="text-sm font-extrabold text-[#2D1406]">Tambah Pegawai</h4>
+        <button onclick="closeEmployeeModal()" class="p-1 rounded-full text-stone-400 hover:text-stone-700">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="employee-form" onsubmit="submitEmployeeForm(event)" class="pt-4 space-y-3.5">
+        <input type="hidden" id="employee-id">
+        <div>
+          <label class="text-xs font-bold text-stone-600 mb-1.5 block">Nama Pegawai</label>
+          <input type="text" id="employee-name" required placeholder="Cth: Rina" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-600 mb-1.5 block">PIN (min. 4 digit)</label>
+          <input type="password" id="employee-pin" maxlength="6" inputmode="numeric" placeholder="••••" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm tracking-widest">
+          <p class="text-[11px] text-stone-400 mt-1">Wajib diisi untuk pegawai baru. Kosongkan jika tidak mau mengubah PIN.</p>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-600 mb-1.5 block">Role</label>
+          <select id="employee-role" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm bg-white">
+            <option value="kasir">Kasir</option>
+            <option value="owner">Owner</option>
+          </select>
+        </div>
+        <p id="employee-form-error" class="hidden text-xs text-red-600 font-semibold bg-red-50 border border-red-200 rounded-xl px-3 py-2"></p>
+        <div class="pt-2 flex gap-2">
+          <button type="button" onclick="closeEmployeeModal()" class="w-1/3 py-2.5 rounded-xl border border-stone-300 font-bold text-stone-600 hover:bg-stone-50">
+            Batal
+          </button>
+          <button type="submit" id="btn-submit-employee" class="flex-1 py-2.5 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white font-bold shadow-md transition-colors flex items-center justify-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Simpan</span>
           </button>
         </div>
       </form>
@@ -1512,20 +1634,27 @@
       currentOwnerView = view;
       const tabFin = document.getElementById('view-tab-finance');
       const tabInv = document.getElementById('view-tab-inventory');
+      const tabStaff = document.getElementById('view-tab-staff');
       const viewFin = document.getElementById('owner-view-finance');
       const viewInv = document.getElementById('owner-view-inventory');
+      const viewStaff = document.getElementById('owner-view-staff');
       const topActions = document.getElementById('inventory-top-actions');
+
+      const TAB_IDLE = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all';
+      [tabFin, tabInv, tabStaff].forEach(t => { t.className = TAB_IDLE; });
+      [viewFin, viewInv, viewStaff].forEach(v => v.classList.add('hidden'));
 
       if (view === 'finance') {
         tabFin.className = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-[#2D1406] text-white shadow-xs transition-all';
-        tabInv.className = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all';
         viewFin.classList.remove('hidden');
-        viewInv.classList.add('hidden');
         topActions.classList.add('hidden');
+      } else if (view === 'staff') {
+        tabStaff.className = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-bakery-orange text-white shadow-xs transition-all';
+        viewStaff.classList.remove('hidden');
+        topActions.classList.add('hidden');
+        loadStaffData();
       } else {
         tabInv.className = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-bakery-orange text-white shadow-xs transition-all';
-        tabFin.className = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all';
-        viewFin.classList.add('hidden');
         viewInv.classList.remove('hidden');
         topActions.classList.remove('hidden');
         loadIngredients();
@@ -1533,8 +1662,189 @@
       lucide.createIcons();
     }
 
-    async function fetchIngredientsSummaryBadge() {
+    // =========================================================================
+    // PEGAWAI & SHIFT
+    // =========================================================================
+    let staffEmployees = [];
+
+    function escapeOwnerHtml(s) {
+      return String(s === undefined || s === null ? '' : s)
+        .replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function fmtShiftDate(iso) {
+      if (!iso) return '—';
+      return new Date(iso).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+
+    async function loadStaffData() {
+      const tbodyEmp = document.getElementById('staff-employee-list');
+      const tbodyShift = document.getElementById('staff-shift-list');
       try {
+        const [resEmp, resShift] = await Promise.all([
+          fetch('/api/owner/employees'),
+          fetch('/api/owner/shifts?limit=50')
+        ]);
+        const dataEmp = await resEmp.json();
+        const dataShift = await resShift.json();
+        if (!resEmp.ok || dataEmp.success !== true || !resShift.ok || dataShift.success !== true) {
+          throw new Error('API shift belum tersedia');
+        }
+        staffEmployees = dataEmp.employees || [];
+        renderStaffEmployees();
+        renderStaffShifts(dataShift.shifts || []);
+      } catch (err) {
+        console.error('Gagal memuat data staff:', err);
+        const msg = '<tr><td colspan="9" class="py-6 text-center">' +
+          '<p class="font-bold text-stone-500 text-xs">Fitur Pegawai & Shift belum aktif di database.</p>' +
+          '<p class="text-[11px] text-stone-400 mt-1">Apply dulu <span class="font-mono">supabase-schema.sql</span> terbaru via Supabase SQL Editor, lalu muat ulang.</p></td></tr>';
+        tbodyEmp.innerHTML = msg.replace('colspan="9"', 'colspan="4"');
+        tbodyShift.innerHTML = msg;
+        document.getElementById('staff-open-shift-note').innerHTML = '';
+      }
+      lucide.createIcons();
+    }
+
+    function renderStaffEmployees() {
+      const tbody = document.getElementById('staff-employee-list');
+      if (!staffEmployees.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-stone-400">Belum ada pegawai. Klik "Tambah Pegawai".</td></tr>';
+        return;
+      }
+      tbody.innerHTML = staffEmployees.map(e => `
+        <tr class="border-b border-stone-50 hover:bg-stone-50/60 transition-colors">
+          <td class="py-2.5 pr-3">
+            <p class="font-bold text-[#2D1406]">${escapeOwnerHtml(e.name)}</p>
+          </td>
+          <td class="py-2.5 pr-3">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-black ${e.role === 'owner' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">${e.role === 'owner' ? 'OWNER' : 'KASIR'}</span>
+          </td>
+          <td class="py-2.5 pr-3">
+            <button onclick="toggleEmployeeActive('${e.id}', ${e.active ? 'false' : 'true'})"
+                    title="${e.active ? 'Nonaktifkan' : 'Aktifkan'}"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black ${e.active ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-200 text-stone-500'}">
+              <span class="w-1.5 h-1.5 rounded-full ${e.active ? 'bg-emerald-500' : 'bg-stone-400'}"></span>
+              ${e.active ? 'AKTIF' : 'NONAKTIF'}
+            </button>
+          </td>
+          <td class="py-2.5 text-right">
+            <button onclick="openEmployeeModal('${e.id}')" class="p-1.5 rounded-lg text-stone-400 hover:text-bakery-orange hover:bg-orange-50 transition-colors" title="Edit">
+              <i data-lucide="pencil" class="w-4 h-4"></i>
+            </button>
+          </td>
+        </tr>`).join('');
+    }
+
+    function renderStaffShifts(shifts) {
+      const tbody = document.getElementById('staff-shift-list');
+      const noteEl = document.getElementById('staff-open-shift-note');
+      const openShift = shifts.find(s => s.status === 'open');
+      if (openShift) {
+        noteEl.innerHTML = `
+          <div class="mb-3 px-3.5 py-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-emerald-800"><strong>${escapeOwnerHtml(openShift.employeeName)}</strong> sedang bertugas (shift dibuka ${fmtShiftDate(openShift.openedAt)}, modal awal ${formatRupiah(openShift.openingCash)}).</span>
+          </div>`;
+      } else {
+        noteEl.innerHTML = '';
+      }
+      if (!shifts.length) {
+        tbody.innerHTML = '<tr><td colspan="9" class="py-6 text-center text-stone-400">Belum ada riwayat shift.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = shifts.map(s => {
+        const diff = s.difference;
+        const diffCls = s.status !== 'closed' ? 'text-stone-400'
+          : diff === 0 ? 'text-emerald-600' : (diff > 0 ? 'text-blue-600' : 'text-red-600');
+        const diffTxt = s.status !== 'closed' ? '—'
+          : diff === 0 ? 'PAS' : (diff > 0 ? '+' + formatRupiah(diff) : '−' + formatRupiah(Math.abs(diff)));
+        return `
+        <tr class="border-b border-stone-50 hover:bg-stone-50/60 transition-colors">
+          <td class="py-2.5 pr-3">
+            <p class="font-bold text-[#2D1406]">${escapeOwnerHtml(s.employeeName)}</p>
+            ${s.status === 'open' ? '<span class="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-700">TERBUKA</span>' : ''}
+          </td>
+          <td class="py-2.5 pr-3 whitespace-nowrap text-stone-500">${fmtShiftDate(s.openedAt)}</td>
+          <td class="py-2.5 pr-3 whitespace-nowrap text-stone-500">${fmtShiftDate(s.closedAt)}</td>
+          <td class="py-2.5 pr-3 text-right font-mono">${formatRupiah(s.openingCash)}</td>
+          <td class="py-2.5 pr-3 text-right font-mono">${s.status === 'closed' ? formatRupiah(s.cashSales) : '—'}</td>
+          <td class="py-2.5 pr-3 text-right font-mono">${s.expectedCash !== null && s.expectedCash !== undefined ? formatRupiah(s.expectedCash) : '—'}</td>
+          <td class="py-2.5 pr-3 text-right font-mono">${s.closingCash !== null && s.closingCash !== undefined ? formatRupiah(s.closingCash) : '—'}</td>
+          <td class="py-2.5 pr-3 text-right font-mono font-black ${diffCls}">${diffTxt}</td>
+          <td class="py-2 text-stone-400 max-w-[140px] truncate" title="${escapeOwnerHtml(s.notes)}">${escapeOwnerHtml(s.notes) || '—'}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function openEmployeeModal(id) {
+      const emp = id ? staffEmployees.find(e => e.id === id) : null;
+      document.getElementById('employee-modal-title').textContent = emp ? 'Edit Pegawai' : 'Tambah Pegawai';
+      document.getElementById('employee-id').value = emp ? emp.id : '';
+      document.getElementById('employee-name').value = emp ? emp.name : '';
+      document.getElementById('employee-pin').value = '';
+      document.getElementById('employee-pin').required = !emp;
+      document.getElementById('employee-role').value = emp ? emp.role : 'kasir';
+      document.getElementById('employee-form-error').classList.add('hidden');
+      document.getElementById('employee-modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeEmployeeModal() {
+      document.getElementById('employee-modal').classList.add('hidden');
+    }
+
+    async function submitEmployeeForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('employee-id').value;
+      const name = document.getElementById('employee-name').value.trim();
+      const pin = document.getElementById('employee-pin').value.trim();
+      const role = document.getElementById('employee-role').value;
+      const errEl = document.getElementById('employee-form-error');
+      errEl.classList.add('hidden');
+      if (!name) { errEl.textContent = 'Nama wajib diisi.'; errEl.classList.remove('hidden'); return; }
+      if (!id && pin.length < 4) { errEl.textContent = 'PIN baru minimal 4 digit.'; errEl.classList.remove('hidden'); return; }
+      if (pin && pin.length < 4) { errEl.textContent = 'PIN minimal 4 digit.'; errEl.classList.remove('hidden'); return; }
+      const btn = document.getElementById('btn-submit-employee');
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/owner/employees/upsert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: id || undefined, name, pin, role })
+        });
+        const data = await res.json();
+        if (data.success) {
+          closeEmployeeModal();
+          await loadStaffData();
+        } else {
+          errEl.textContent = data.message || 'Gagal menyimpan pegawai.';
+          errEl.classList.remove('hidden');
+        }
+      } catch (err) {
+        errEl.textContent = 'Koneksi gagal. Coba lagi.';
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function toggleEmployeeActive(id, active) {
+      if (!confirm(active ? 'Aktifkan kembali pegawai ini?' : 'Nonaktifkan pegawai ini? (PIN-nya tidak bisa dipakai buka shift)')) return;
+      try {
+        const res = await fetch('/api/owner/employees/set-active', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, active })
+        });
+        const data = await res.json();
+        if (data.success) await loadStaffData();
+        else alert(data.message || 'Gagal mengubah status.');
+      } catch (err) {
+        alert('Koneksi gagal.');
+      }
+    }
+
+    async function fetchIngredientsSummaryBadge() {      try {
         const res = await fetch('/api/owner/ingredients');
         const data = await res.json();
         if (data.success && data.summary) {
@@ -2183,6 +2493,21 @@
       if (!name) {
         alert('Nama menu wajib diisi');
         return;
+      }
+
+      // GUARD: jangan sampai overwrite resep yang barisnya menyusut tanpa sadar
+      // (mis. baris resep tak sengaja terhapus saat edit modal BOM).
+      if (!isNew) {
+        const existing = allRecipesData[menuId];
+        const existingCount = existing ? existing.length : 0;
+        const newCount = (editingRecipeRows || []).length;
+        if (existingCount > newCount) {
+          const ok = confirm(
+            `Resep "${name}" akan berkurang dari ${existingCount} baris menjadi ${newCount} baris.\n\n` +
+            `Ini akan menghapus ${existingCount - newCount} bahan dari BOM. Lanjut simpan?`
+          );
+          if (!ok) return;
+        }
       }
 
       const formattedPrice = `Rp ${priceNum.toLocaleString('id-ID')}`;

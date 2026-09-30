@@ -72,6 +72,24 @@
   function rpc(fn, args) { return sb('/rpc/' + fn, { method: 'POST', body: args }); }
 
   /* ------------------------------------------------------------------ */
+  /* Kompatibilitas skema: kolom orders.shift_id mungkin belum ada di DB */
+  /* (skema di-apply terpisah via Supabase SQL Editor). Probe sekali     */
+  /* saat dibutuhkan, hasil di-cache — checkout lama tetap jalan.        */
+  /* ------------------------------------------------------------------ */
+  var _hasShiftId = null;
+  function ordersHasShiftId() {
+    if (_hasShiftId !== null) return Promise.resolve(_hasShiftId);
+    return sel('orders', 'select=shift_id&limit=1').then(function () {
+      _hasShiftId = true;
+      return true;
+    }).catch(function (e) {
+      // Error lain (mis. jaringan) -> anggap kolom ada, biar error aslinya muncul.
+      _hasShiftId = !/shift_id/i.test(String((e && e.message) || ''));
+      return _hasShiftId;
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
   /* Helper tanggal WIB (replika server.js)                              */
   /* ------------------------------------------------------------------ */
   function getJakartaDate(d) {
@@ -107,6 +125,23 @@
   function formatRp(n) { return 'Rp ' + Number(n).toLocaleString('id-ID'); }
   function uid(prefix) {
     return (prefix || 'id') + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Hash PIN pegawai (djb2 ganda + salt).                               */
+  /* Proteksi OPERASIONAL agar PIN tidak tersimpan plaintext di DB —    */
+  /* BUKAN keamanan bank-grade (RLS masih anon_all, kunci anon ada di    */
+  /* frontend). Jangan pakai untuk data sensitif di luar kasir.         */
+  /* ------------------------------------------------------------------ */
+  function hashPin(pin) {
+    var s = 'chewys-pin::' + String(pin === undefined || pin === null ? '' : pin);
+    var h1 = 5381, h2 = 52711, i, c;
+    for (i = 0; i < s.length; i++) {
+      c = s.charCodeAt(i);
+      h1 = ((h1 * 33) ^ c) >>> 0;
+      h2 = ((h2 * 33) ^ c) >>> 0;
+    }
+    return ('0000000' + h1.toString(16)).slice(-8) + ('0000000' + h2.toString(16)).slice(-8);
   }
 
   /* ------------------------------------------------------------------ */
@@ -148,7 +183,7 @@
       subtotal: r.subtotal, discount: r.discount, tax: r.tax, total: r.total,
       paymentMethod: r.payment_method, cashPaid: r.cash_paid,
       cashChange: r.cash_change, paymentReference: r.payment_reference || '',
-      cashier: r.cashier, status: r.status
+      cashier: r.cashier, status: r.status, shiftId: r.shift_id || null
     };
   }
   function orderToRow(o) {
@@ -157,7 +192,26 @@
       items: o.items, subtotal: o.subtotal, discount: o.discount, tax: o.tax,
       total: o.total, payment_method: o.paymentMethod, cash_paid: o.cashPaid,
       cash_change: o.cashChange, payment_reference: o.paymentReference || '',
-      cashier: o.cashier, status: o.status
+      cashier: o.cashier, status: o.status, shift_id: o.shiftId || null
+    };
+  }
+  function rowToEmployee(r) {
+    // pin_hash SENGAJA tidak disertakan — tidak boleh bocor ke frontend
+    return {
+      id: r.id, name: r.name, role: r.role || 'kasir',
+      active: r.active !== false, createdAt: r.created_at
+    };
+  }
+  function rowToShift(r) {
+    return {
+      id: r.id, employeeId: r.employee_id, employeeName: r.employee_name || '',
+      openedAt: r.opened_at, closedAt: r.closed_at || null,
+      openingCash: Number(r.opening_cash) || 0,
+      expectedCash: (r.expected_cash === null || r.expected_cash === undefined) ? null : Number(r.expected_cash),
+      closingCash: (r.closing_cash === null || r.closing_cash === undefined) ? null : Number(r.closing_cash),
+      difference: (r.difference === null || r.difference === undefined) ? null : Number(r.difference),
+      cashSales: Number(r.cash_sales) || 0,
+      status: r.status || 'open', notes: r.notes || ''
     };
   }
   function rowToIngredient(r) {
@@ -335,9 +389,29 @@
         cashChange: Number(body.cashChange) || 0,
         paymentReference: body.paymentReference || '',
         cashier: body.cashier || 'Kasir 1',
+        shiftId: body.shiftId || null,
         status: 'completed'
       };
-      return ins('orders', [orderToRow(newOrder)]).then(function () {
+      // Jika checkout dari shift aktif: pakai nama pegawai shift sebagai kasir.
+      // Tanpa shiftId, perilaku lama dipertahankan (body.cashier || 'Kasir 1').
+      var shiftNameLookup = newOrder.shiftId
+        ? sel('shifts', 'select=employee_name,status&id=eq.' + encodeURIComponent(newOrder.shiftId))
+          .then(function (sr) {
+            if (sr.length && sr[0].status === 'open' && sr[0].employee_name) {
+              newOrder.cashier = sr[0].employee_name;
+            }
+          })
+          .catch(function () { /* shift tidak valid -> pakai cashier dari body */ })
+        : Promise.resolve();
+      return shiftNameLookup.then(function () {
+        var row = orderToRow(newOrder);
+        // Kolom shift_id mungkin belum ada (skema belum di-apply) -> strip agar
+        // checkout lama tetap jalan; fitur shift butuh skema baru.
+        return ordersHasShiftId().then(function (has) {
+          if (!has) delete row.shift_id;
+          return ins('orders', [row]);
+        });
+      }).then(function () {
         // Kurangi stok menu
         var ids = body.items.map(function (i) { return i.id; });
         return sel('menu_items', 'select=id,stock_qty&id=in.(' + ids.map(encodeURIComponent).join(',') + ')')
@@ -782,6 +856,133 @@
         success: true, menuItem: r.menuItem, recipe: r.recipe,
         calculatedHpp: r.calculatedHpp, message: 'Menu dan resep berhasil disimpan'
       });
+    }).catch(serverError);
+  };
+
+  /* ================================================================== */
+  /* Pegawai & Shift Kasir                                               */
+  /* ================================================================== */
+
+  // 20. GET /api/owner/employees — daftar pegawai (tanpa pin_hash)
+  routes['GET /api/owner/employees'] = function () {
+    return sel('employees', 'select=id,name,role,active,created_at&order=created_at.asc').then(function (rows) {
+      return ok({ success: true, employees: rows.map(rowToEmployee) });
+    }).catch(serverError);
+  };
+
+  // 21. POST /api/owner/employees/upsert — tambah / edit pegawai
+  //     body: { id?, name, pin?, role? } — pin hanya wajib saat tambah baru;
+  //     saat edit, pin boleh dikosongkan = tidak diubah.
+  routes['POST /api/owner/employees/upsert'] = function (body) {
+    var name = String(body.name || '').trim();
+    if (!name) return Promise.resolve(bad({ success: false, message: 'Nama pegawai wajib diisi' }));
+    var role = body.role === 'owner' ? 'owner' : 'kasir';
+    var pin = body.pin === undefined || body.pin === null ? '' : String(body.pin).trim();
+    if (body.id) {
+      return sel('employees', 'select=id&id=eq.' + encodeURIComponent(body.id)).then(function (er) {
+        if (!er.length) return notFound({ success: false, message: 'Pegawai tidak ditemukan' });
+        var patch = { name: name, role: role };
+        if (pin !== '') {
+          if (pin.length < 4) return bad({ success: false, message: 'PIN minimal 4 digit' });
+          patch.pin_hash = hashPin(pin);
+        }
+        return upd('employees', 'id=eq.' + encodeURIComponent(body.id), patch).then(function (u) {
+          return ok({ success: true, employee: rowToEmployee(u[0]) });
+        });
+      }).catch(serverError);
+    }
+    if (pin.length < 4) return Promise.resolve(bad({ success: false, message: 'PIN baru minimal 4 digit' }));
+    return ins('employees', [{
+      id: uid('emp'), name: name, pin_hash: hashPin(pin), role: role, active: true
+    }]).then(function (rows) {
+      return created({ success: true, employee: rowToEmployee(rows[0]) });
+    }).catch(serverError);
+  };
+
+  // 22. POST /api/owner/employees/set-active — aktif/nonaktif pegawai
+  routes['POST /api/owner/employees/set-active'] = function (body) {
+    if (!body.id) return Promise.resolve(bad({ success: false, message: 'ID pegawai wajib diisi' }));
+    return upd('employees', 'id=eq.' + encodeURIComponent(body.id), { active: body.active !== false })
+      .then(function (u) {
+        if (!u.length) return notFound({ success: false, message: 'Pegawai tidak ditemukan' });
+        return ok({ success: true, employee: rowToEmployee(u[0]) });
+      }).catch(serverError);
+  };
+
+  // 23. POST /api/shift/open — buka shift (verifikasi PIN pegawai)
+  //     body: { employee_id, pin, opening_cash }
+  routes['POST /api/shift/open'] = function (body) {
+    if (!body.employee_id || body.pin === undefined || body.pin === null) {
+      return Promise.resolve(bad({ success: false, message: 'Pegawai dan PIN wajib diisi' }));
+    }
+    return sel('employees', 'select=id,name,pin_hash,active&id=eq.' + encodeURIComponent(body.employee_id))
+      .then(function (er) {
+        if (!er.length || !er[0].active) {
+          return unauthorized({ success: false, message: 'Pegawai tidak ditemukan atau nonaktif' });
+        }
+        if (hashPin(String(body.pin)) !== er[0].pin_hash) {
+          return unauthorized({ success: false, message: 'PIN salah!' });
+        }
+        return sel('shifts', 'select=id&status=eq.open&limit=1').then(function (openRows) {
+          if (openRows.length) {
+            return bad({ success: false, message: 'Masih ada shift yang terbuka. Tutup dulu sebelum buka shift baru.' });
+          }
+          var opening = Math.max(0, Math.floor(Number(body.opening_cash) || 0));
+          return ins('shifts', [{
+            id: uid('shift'), employee_id: er[0].id, employee_name: er[0].name,
+            opening_cash: opening, status: 'open'
+          }]).then(function (rows) {
+            return created({ success: true, shift: rowToShift(rows[0]) });
+          });
+        });
+      }).catch(serverError);
+  };
+
+  // 24. POST /api/shift/close — tutup shift + opname kas
+  //     body: { shift_id, closing_cash, notes? }
+  //     expected = opening_cash + penjualan tunai (orders cash di rentang shift)
+  //     difference = closing_cash - expected
+  routes['POST /api/shift/close'] = function (body) {
+    if (!body.shift_id) return Promise.resolve(bad({ success: false, message: 'ID shift wajib diisi' }));
+    return sel('shifts', 'select=*&id=eq.' + encodeURIComponent(body.shift_id)).then(function (rows) {
+      if (!rows.length) return notFound({ success: false, message: 'Shift tidak ditemukan' });
+      var s = rows[0];
+      if (s.status !== 'open') return bad({ success: false, message: 'Shift ini sudah ditutup' });
+      var closedAt = new Date().toISOString();
+      var q = 'select=total&payment_method=eq.cash&status=eq.completed'
+        + '&created_at=gte.' + encodeURIComponent(s.opened_at)
+        + '&created_at=lte.' + encodeURIComponent(closedAt)
+        + '&limit=5000';
+      return sel('orders', q).then(function (orders) {
+        var cashSales = orders.reduce(function (a, o) { return a + (Number(o.total) || 0); }, 0);
+        var expected = (Number(s.opening_cash) || 0) + cashSales;
+        var closing = Math.max(0, Math.floor(Number(body.closing_cash) || 0));
+        var patch = {
+          closed_at: closedAt, expected_cash: expected, closing_cash: closing,
+          difference: closing - expected, cash_sales: cashSales,
+          status: 'closed', notes: String(body.notes || '')
+        };
+        return upd('shifts', 'id=eq.' + encodeURIComponent(s.id), patch).then(function (u) {
+          return ok({ success: true, shift: rowToShift(u[0]) });
+        });
+      });
+    }).catch(serverError);
+  };
+
+  // 25. GET /api/shift/current — shift yg sedang terbuka (atau null)
+  routes['GET /api/shift/current'] = function () {
+    return sel('shifts', 'select=*&status=eq.open&order=opened_at.desc&limit=1').then(function (rows) {
+      return ok({ success: true, shift: rows.length ? rowToShift(rows[0]) : null });
+    }).catch(serverError);
+  };
+
+  // 26. GET /api/owner/shifts — riwayat shift (?limit=, default 50, maks 200)
+  routes['GET /api/owner/shifts'] = function (body, query) {
+    var limit = parseInt((query && query.limit) || '50', 10);
+    if (!(limit > 0)) limit = 50;
+    limit = Math.min(200, limit);
+    return sel('shifts', 'select=*&order=opened_at.desc&limit=' + limit).then(function (rows) {
+      return ok({ success: true, shifts: rows.map(rowToShift) });
     }).catch(serverError);
   };
 

@@ -101,6 +101,13 @@
 
     <!-- Quick action links -->
     <div class="flex items-center gap-2 sm:gap-3">
+      <!-- Shift aktif -->
+      <div id="shift-badge" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs"></div>
+      <button id="btn-close-shift" onclick="openShiftCloseModal()" class="hidden px-3 sm:px-3.5 py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 font-semibold text-xs gap-1.5 transition-colors">
+        <i data-lucide="log-out" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">Tutup Shift</span>
+      </button>
+
       <!-- Laporan Hari Ini Modal Trigger -->
       <button onclick="openSummaryModal()" class="px-3 sm:px-3.5 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs flex items-center gap-1.5 transition-colors">
         <i data-lucide="bar-chart-2" class="w-4 h-4 text-bakery-orange"></i>
@@ -511,6 +518,89 @@
   </div>
 
   <!-- =========================================================================
+       MODAL 5: BUKA SHIFT (wajib sebelum jualan — tidak bisa ditutup manual)
+       ========================================================================= -->
+  <div id="shift-open-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#2D1406]/90 backdrop-blur-sm">
+    <div class="w-full max-w-sm bg-white rounded-3xl p-5 sm:p-6 shadow-2xl border border-stone-200">
+      <div class="text-center mb-4">
+        <div class="w-12 h-12 rounded-2xl bg-orange-100 text-bakery-orange flex items-center justify-center mx-auto mb-2">
+          <i data-lucide="user-check" class="w-6 h-6"></i>
+        </div>
+        <h3 class="text-lg font-extrabold text-[#2D1406]">Buka Shift Kasir</h3>
+        <p class="text-xs text-stone-500 mt-1">Pilih pegawai, masukkan PIN & hitung modal kas awal</p>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-bold text-stone-600 mb-1 block">Pegawai</label>
+          <select id="shift-employee-select" class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none bg-white">
+            <option value="">Memuat...</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-600 mb-1 block">PIN Pegawai</label>
+          <input type="password" id="shift-pin-input" maxlength="6" inputmode="numeric" placeholder="••••"
+                 class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none tracking-widest">
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-600 mb-1 block">Modal Kas Awal (Rp)</label>
+          <input type="text" id="shift-opening-cash" inputmode="numeric" placeholder="0"
+                 class="w-full px-3.5 py-2.5 text-sm font-mono font-bold rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none">
+        </div>
+        <p id="shift-open-error" class="hidden text-xs text-red-600 font-semibold bg-red-50 border border-red-200 rounded-xl px-3 py-2"></p>
+        <p id="shift-open-empty-note" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+          Belum ada data pegawai. Tambahkan dulu di <a href="/owner.html" target="_blank" class="font-bold underline">Portal Owner → Pegawai &amp; Shift</a>.
+        </p>
+        <button id="btn-submit-shift-open" onclick="submitShiftOpen()"
+                class="w-full py-3 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all">
+          <i data-lucide="log-in" class="w-4 h-4"></i>
+          <span>Buka Shift & Mulai Jualan</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 6: TUTUP SHIFT + OPNAME KAS
+       ========================================================================= -->
+  <div id="shift-close-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#2D1406]/85 backdrop-blur-sm">
+    <div class="w-full max-w-sm bg-white rounded-3xl p-5 sm:p-6 shadow-2xl border border-stone-200 flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+        <div>
+          <span class="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Opname Kas</span>
+          <h3 class="text-lg font-extrabold text-[#2D1406]">Tutup Shift</h3>
+        </div>
+        <button onclick="closeShiftCloseModal()" class="p-2 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="shift-close-form" class="pt-3 space-y-3 overflow-y-auto">
+        <div id="shift-close-info" class="p-3 rounded-2xl bg-stone-50 border border-stone-200"></div>
+        <div>
+          <label class="text-xs font-bold text-stone-600 mb-1 block">Hitung Kas Fisik di Laci (Rp)</label>
+          <input type="text" id="shift-closing-cash" inputmode="numeric" placeholder="0"
+                 class="w-full px-3.5 py-2.5 text-xl font-mono font-black rounded-xl border-2 border-stone-200 focus:border-bakery-orange focus:outline-none">
+          <p class="text-[11px] text-stone-400 mt-1">Hitung dulu uangnya, baru isi — jangan intip angka sistem.</p>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-600 mb-1 block">Catatan (opsional)</label>
+          <input type="text" id="shift-close-notes" placeholder="Cth: ada pengeluaran beli es Rp 20rb"
+                 class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-stone-300 focus:border-bakery-orange focus:outline-none">
+        </div>
+        <p id="shift-close-error" class="hidden text-xs text-red-600 font-semibold bg-red-50 border border-red-200 rounded-xl px-3 py-2"></p>
+        <button id="btn-submit-shift-close" onclick="submitShiftClose()"
+                class="w-full py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+          <span>Tutup Shift & Hitung Selisih</span>
+        </button>
+      </div>
+
+      <div id="shift-close-result" class="hidden pt-3 space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
        JAVASCRIPT LOGIC
        ========================================================================= -->
   <script>
@@ -526,6 +616,10 @@
     let discountRate = 0;
     let selectedPayment = 'cash';
     let activeCompletedOrder = null;
+
+    // Shift State — wajib ada shift terbuka sebelum bisa jualan
+    let currentShift = null; // { id, employeeName, openedAt, openingCash, ... }
+    let shiftEmployees = [];
 
     // Real-time Clock
     function updateClock() {
@@ -551,6 +645,204 @@
         console.error('Failed to load menu for POS:', err);
       }
       lucide.createIcons();
+      await checkShiftStatus();
+    }
+
+    // =========================================================================
+    // SHIFT KASIR — wajib buka shift (pilih pegawai + PIN + modal kas) dulu
+    // =========================================================================
+    async function checkShiftStatus() {
+      let shiftApiOk = false;
+      try {
+        const res = await fetch('/api/shift/current');
+        const data = await res.json();
+        shiftApiOk = res.ok && data.success === true;
+        if (shiftApiOk && data.shift) {
+          currentShift = data.shift;
+          renderShiftBadge();
+          return; // ada shift terbuka -> langsung jualan
+        }
+      } catch (err) {
+        console.error('Gagal cek shift:', err);
+      }
+      if (shiftApiOk) {
+        // API shift jalan tapi belum ada shift terbuka -> wajib buka shift dulu
+        currentShift = null;
+        renderShiftBadge();
+        await openShiftModal();
+      } else {
+        // API shift belum tersedia (skema employees/shifts belum di-apply di DB)
+        // -> mode kompatibilitas: tetap bisa jualan seperti biasa tanpa shift.
+        console.warn('[shift] API shift belum tersedia, jalan tanpa shift.');
+        currentShift = null;
+        renderShiftBadge();
+      }
+    }
+
+    function renderShiftBadge() {
+      const badge = document.getElementById('shift-badge');
+      const closeBtn = document.getElementById('btn-close-shift');
+      if (!badge) return;
+      if (currentShift) {
+        const openTime = new Date(currentShift.openedAt).toLocaleString('id-ID', {
+          day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+        });
+        badge.innerHTML = `
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span class="font-bold text-emerald-800">${escapeHtml(currentShift.employeeName)}</span>
+          <span class="text-stone-400">· Shift ${openTime}</span>`;
+        badge.classList.remove('hidden');
+        badge.classList.add('flex');
+        if (closeBtn) { closeBtn.classList.remove('hidden'); closeBtn.classList.add('flex'); }
+      } else {
+        badge.classList.add('hidden');
+        badge.classList.remove('flex');
+        if (closeBtn) { closeBtn.classList.add('hidden'); closeBtn.classList.remove('flex'); }
+      }
+      lucide.createIcons();
+    }
+
+    function escapeHtml(s) {
+      return String(s === undefined || s === null ? '' : s)
+        .replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    async function openShiftModal() {
+      // Muat daftar pegawai aktif
+      try {
+        const res = await fetch('/api/owner/employees');
+        const data = await res.json();
+        shiftEmployees = (data.success && data.employees ? data.employees : []).filter(e => e.active);
+      } catch (err) {
+        shiftEmployees = [];
+      }
+      const sel = document.getElementById('shift-employee-select');
+      if (shiftEmployees.length === 0) {
+        sel.innerHTML = '<option value="">— Belum ada pegawai —</option>';
+        document.getElementById('shift-open-empty-note').classList.remove('hidden');
+      } else {
+        sel.innerHTML = '<option value="">Pilih pegawai...</option>' + shiftEmployees.map(e =>
+          `<option value="${e.id}">${escapeHtml(e.name)}${e.role === 'owner' ? ' (Owner)' : ''}</option>`
+        ).join('');
+        document.getElementById('shift-open-empty-note').classList.add('hidden');
+      }
+      document.getElementById('shift-pin-input').value = '';
+      document.getElementById('shift-opening-cash').value = '';
+      document.getElementById('shift-open-error').classList.add('hidden');
+      document.getElementById('shift-open-modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function parseShiftCash(rawVal) {
+      return parseInt(String(rawVal || '').replace(/[^0-9]/g, ''), 10) || 0;
+    }
+
+    async function submitShiftOpen() {
+      const empId = document.getElementById('shift-employee-select').value;
+      const pin = document.getElementById('shift-pin-input').value.trim();
+      const openingCash = parseShiftCash(document.getElementById('shift-opening-cash').value);
+      const errEl = document.getElementById('shift-open-error');
+      errEl.classList.add('hidden');
+      if (!empId) { errEl.textContent = 'Pilih dulu pegawainya.'; errEl.classList.remove('hidden'); return; }
+      if (!pin) { errEl.textContent = 'Masukkan PIN pegawai.'; errEl.classList.remove('hidden'); return; }
+      const btn = document.getElementById('btn-submit-shift-open');
+      btn.disabled = true;
+      btn.innerHTML = '<span>Membuka shift...</span>';
+      try {
+        const res = await fetch('/api/shift/open', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ employee_id: empId, pin, opening_cash: openingCash })
+        });
+        const data = await res.json();
+        if (data.success && data.shift) {
+          currentShift = data.shift;
+          document.getElementById('shift-open-modal').classList.add('hidden');
+          renderShiftBadge();
+        } else {
+          errEl.textContent = data.message || 'Gagal membuka shift.';
+          errEl.classList.remove('hidden');
+        }
+      } catch (err) {
+        errEl.textContent = 'Koneksi gagal. Coba lagi.';
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="log-in" class="w-4 h-4"></i><span>Buka Shift & Mulai Jualan</span>';
+        lucide.createIcons();
+      }
+    }
+
+    function openShiftCloseModal() {
+      if (!currentShift) return;
+      const openTime = new Date(currentShift.openedAt).toLocaleString('id-ID', {
+        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+      });
+      document.getElementById('shift-close-info').innerHTML = `
+        <div class="flex justify-between text-xs py-1"><span class="text-stone-500">Kasir</span><span class="font-bold">${escapeHtml(currentShift.employeeName)}</span></div>
+        <div class="flex justify-between text-xs py-1"><span class="text-stone-500">Shift dibuka</span><span class="font-bold">${openTime}</span></div>
+        <div class="flex justify-between text-xs py-1"><span class="text-stone-500">Modal kas awal</span><span class="font-bold font-mono">${formatRupiah(currentShift.openingCash)}</span></div>`;
+      document.getElementById('shift-closing-cash').value = '';
+      document.getElementById('shift-close-notes').value = '';
+      document.getElementById('shift-close-error').classList.add('hidden');
+      document.getElementById('shift-close-result').classList.add('hidden');
+      document.getElementById('shift-close-form').classList.remove('hidden');
+      document.getElementById('shift-close-modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeShiftCloseModal() {
+      // Hanya boleh ditutup manual bila shift masih terbuka (batal opname)
+      document.getElementById('shift-close-modal').classList.add('hidden');
+    }
+
+    async function submitShiftClose() {
+      const closingCash = parseShiftCash(document.getElementById('shift-closing-cash').value);
+      const notes = document.getElementById('shift-close-notes').value.trim();
+      const errEl = document.getElementById('shift-close-error');
+      errEl.classList.add('hidden');
+      if (!currentShift) { errEl.textContent = 'Tidak ada shift aktif.'; errEl.classList.remove('hidden'); return; }
+      if (!confirm(`Tutup shift ${currentShift.employeeName} dengan kas fisik ${formatRupiah(closingCash)}?`)) return;
+      const btn = document.getElementById('btn-submit-shift-close');
+      btn.disabled = true;
+      btn.innerHTML = '<span>Menghitung...</span>';
+      try {
+        const res = await fetch('/api/shift/close', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shift_id: currentShift.id, closing_cash: closingCash, notes })
+        });
+        const data = await res.json();
+        if (data.success && data.shift) {
+          const sh = data.shift;
+          const diff = sh.difference || 0;
+          const diffCls = diff === 0 ? 'text-emerald-600' : (diff > 0 ? 'text-blue-600' : 'text-red-600');
+          const diffLabel = diff === 0 ? 'PAS' : (diff > 0 ? `LEBIH ${formatRupiah(diff)}` : `KURANG ${formatRupiah(Math.abs(diff))}`);
+          document.getElementById('shift-close-result').innerHTML = `
+            <div class="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-1.5">
+              <div class="flex justify-between text-xs"><span class="text-stone-500">Modal kas awal</span><span class="font-mono font-bold">${formatRupiah(sh.openingCash)}</span></div>
+              <div class="flex justify-between text-xs"><span class="text-stone-500">Penjualan tunai shift ini</span><span class="font-mono font-bold">+ ${formatRupiah(sh.cashSales)}</span></div>
+              <div class="flex justify-between text-xs"><span class="text-stone-500">Kas harapan (sistem)</span><span class="font-mono font-bold">${formatRupiah(sh.expectedCash)}</span></div>
+              <div class="flex justify-between text-xs"><span class="text-stone-500">Kas fisik (hitungan)</span><span class="font-mono font-bold">${formatRupiah(sh.closingCash)}</span></div>
+              <div class="flex justify-between text-sm pt-1.5 border-t border-stone-200"><span class="font-bold">Selisih</span><span class="font-black font-mono ${diffCls}">${diffLabel}</span></div>
+            </div>
+            <p class="text-[11px] text-stone-500 text-center">Shift telah ditutup. Halaman akan dimuat ulang untuk shift berikutnya.</p>`;
+          document.getElementById('shift-close-result').classList.remove('hidden');
+          document.getElementById('shift-close-form').classList.add('hidden');
+          currentShift = null;
+          setTimeout(() => location.reload(), 3500);
+        } else {
+          errEl.textContent = data.message || 'Gagal menutup shift.';
+          errEl.classList.remove('hidden');
+        }
+      } catch (err) {
+        errEl.textContent = 'Koneksi gagal. Coba lagi.';
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="log-out" class="w-4 h-4"></i><span>Tutup Shift & Hitung Selisih</span>';
+        lucide.createIcons();
+      }
     }
 
     // Render Category Pills
@@ -1027,7 +1319,8 @@
         cashPaid: selectedPayment === 'cash' ? currentCashReceived : grandTotal,
         cashChange: selectedPayment === 'cash' ? Math.max(0, currentCashReceived - grandTotal) : 0,
         paymentReference: selectedPayment === 'edc' ? (document.getElementById('edc-ref-input').value.trim() || 'EDC') : '',
-        cashier: 'Kasir 1'
+        cashier: currentShift ? currentShift.employeeName : 'Kasir 1',
+        shiftId: currentShift ? currentShift.id : null
       };
 
       try {
