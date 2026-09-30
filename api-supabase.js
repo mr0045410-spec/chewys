@@ -282,10 +282,36 @@
     }).catch(serverError);
   };
 
-  // 2. POST /api/admin/login
+  // 2. POST /api/admin/login — PIN owner diambil dari settings.owner_pin (fallback '1234').
   routes['POST /api/admin/login'] = function (body) {
-    if (body.pin === ADMIN_PIN) return Promise.resolve(ok({ success: true, message: 'Login successful' }));
-    return Promise.resolve(unauthorized({ success: false, message: 'PIN salah!' }));
+    return getOwnerPin().then(function (pin) {
+      if (String(body.pin || '') === pin) return ok({ success: true, message: 'Login successful' });
+      return unauthorized({ success: false, message: 'PIN salah!' });
+    }).catch(serverError);
+  };
+
+  // Helper: baca PIN owner dari settings (fallback ADMIN_PIN bila baris belum ada).
+  function getOwnerPin() {
+    return sel('settings', 'select=value&key=eq.owner_pin').then(function (rows) {
+      if (rows && rows.length && rows[0].value) return String(rows[0].value);
+      return ADMIN_PIN;
+    });
+  }
+
+  // 2b. POST /api/owner/change-pin — { old_pin, new_pin } (4-6 digit angka).
+  routes['POST /api/owner/change-pin'] = function (body) {
+    var oldPin = String(body.old_pin || '');
+    var newPin = String(body.new_pin || '');
+    if (!/^[0-9]{4,6}$/.test(newPin)) {
+      return Promise.resolve(bad({ success: false, message: 'PIN baru harus 4-6 digit angka.' }));
+    }
+    return getOwnerPin().then(function (current) {
+      if (oldPin !== current) return unauthorized({ success: false, message: 'PIN lama salah.' });
+      if (newPin === current) return bad({ success: false, message: 'PIN baru sama dengan PIN lama.' });
+      return upsertSetting('owner_pin', newPin).then(function () {
+        return ok({ success: true, message: 'PIN owner berhasil diubah.' });
+      });
+    }).catch(serverError);
   };
 
   // 3. POST /api/menu/toggle-stock
