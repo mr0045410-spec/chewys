@@ -1179,6 +1179,7 @@
           <input id="void-pin" type="password" maxlength="6" inputmode="numeric" placeholder="PIN owner" class="w-full px-3 py-2.5 rounded-2xl border border-stone-300 text-sm font-mono focus:outline-none focus:border-rose-400" />
         </div>
         <div id="void-confirm-warn" class="hidden bg-amber-50 border border-amber-300 rounded-2xl p-3 text-amber-800 text-[11px] leading-relaxed"></div>
+        <div id="void-error" class="hidden bg-rose-50 border border-rose-300 rounded-2xl p-3 text-rose-700 text-[11px] leading-relaxed font-bold"></div>
         <div class="flex gap-2 pt-1">
           <button type="button" onclick="closeVoidModal()" class="flex-1 px-4 py-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold transition-colors">Batal</button>
           <button type="button" id="void-submit-btn" onclick="submitVoidOrder()" class="flex-1 px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold transition-colors">Void Sekarang</button>
@@ -2040,15 +2041,21 @@
       if (voidArmTimer) { clearTimeout(voidArmTimer); voidArmTimer = null; }
       const btn = document.getElementById('void-submit-btn');
       const warn = document.getElementById('void-confirm-warn');
+      const errBox = document.getElementById('void-error');
       if (btn) { btn.textContent = 'Void Sekarang'; btn.classList.remove('bg-amber-600', 'hover:bg-amber-700'); btn.classList.add('bg-rose-600', 'hover:bg-rose-700'); }
       if (warn) warn.classList.add('hidden');
+      if (errBox) errBox.classList.add('hidden');
+    }
+    function showVoidError(msg) {
+      const errBox = document.getElementById('void-error');
+      if (errBox) { errBox.textContent = msg; errBox.classList.remove('hidden'); }
     }
     async function submitVoidOrder() {
       if (!voidTarget) return;
       const reason = document.getElementById('void-reason').value.trim();
       const pin = document.getElementById('void-pin').value.trim();
-      if (!reason) { alert('Alasan void wajib diisi.'); return; }
-      if (!pin) { alert('PIN owner wajib diisi.'); return; }
+      if (!reason) { showVoidError('Alasan void wajib diisi.'); return; }
+      if (!pin) { showVoidError('PIN owner wajib diisi.'); return; }
       if (!voidArmed) {
         voidArmed = true;
         const warn = document.getElementById('void-confirm-warn');
@@ -2073,7 +2080,8 @@
         viewVoidReceipt(data.order.id, data);
         loadAnalytics(); // refresh tabel riwayat
       } catch (err) {
-        alert('Void gagal: ' + err.message);
+        disarmVoid();
+        showVoidError('Void gagal: ' + err.message);
       }
     }
 

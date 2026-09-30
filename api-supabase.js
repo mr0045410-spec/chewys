@@ -441,11 +441,18 @@
           .then(function (menuRows) {
             var stockMap = {};
             menuRows.forEach(function (m) { stockMap[m.id] = m.stock_qty; });
-            var updates = body.items.map(function (orderItem) {
+            var updates = [];
+            var menuFinal = {};
+            body.items.forEach(function (orderItem) {
               var cur = typeof stockMap[orderItem.id] === 'number' ? stockMap[orderItem.id] : 25;
-              var ns = Math.max(0, cur - (Number(orderItem.qty) || 1));
-              return upd('menu_items', 'id=eq.' + encodeURIComponent(orderItem.id),
-                { stock_qty: ns, in_stock: ns > 0, updated_at: new Date().toISOString() });
+              // akumulasi dulu per menu (satu order bisa berisi menu yg sama 2x),
+              // PATCH absolut hanya sekali per menu agar tidak race.
+              var prev = (menuFinal[orderItem.id] !== undefined) ? menuFinal[orderItem.id] : cur;
+              menuFinal[orderItem.id] = Math.max(0, prev - (Number(orderItem.qty) || 1));
+            });
+            Object.keys(menuFinal).forEach(function (mid) {
+              updates.push(upd('menu_items', 'id=eq.' + encodeURIComponent(mid),
+                { stock_qty: menuFinal[mid], in_stock: menuFinal[mid] > 0, updated_at: new Date().toISOString() }));
             });
             return Promise.all(updates);
           })
@@ -468,6 +475,7 @@
                 ingRows.forEach(function (g) { ingMap[g.id] = g; });
                 var ops = [];
                 var logs = [];
+                var ingFinal = {}; // id bahan -> stok akhir (satu PATCH per bahan, anti race)
                 body.items.forEach(function (orderItem) {
                   var qtyBought = Number(orderItem.qty) || 1;
                   (recipeMap[orderItem.id] || []).forEach(function (rec) {
@@ -476,7 +484,7 @@
                     var deduction = (Number(rec.amount) || 0) * qtyBought;
                     var nb = Math.max(0, Math.round((Number(ing.current_stock) - deduction) * 1000) / 1000);
                     ing.current_stock = nb; // untuk item berikutnya yg pakai bahan sama
-                    ops.push(upd('ingredients', 'id=eq.' + encodeURIComponent(ing.id), { current_stock: nb }));
+                    ingFinal[ing.id] = nb;
                     logs.push({
                       id: uid('log'), ingredient_id: ing.id, ingredient_name: ing.name,
                       type: 'OUT_SALE', change_qty: -deduction, balance_qty: nb,
@@ -484,6 +492,9 @@
                       note: (orderItem.name || orderItem.id) + ' x' + qtyBought
                     });
                   });
+                });
+                Object.keys(ingFinal).forEach(function (iid) {
+                  ops.push(upd('ingredients', 'id=eq.' + encodeURIComponent(iid), { current_stock: ingFinal[iid] }));
                 });
                 return Promise.all(ops).then(function () {
                   return logs.length ? ins('stock_logs', logs) : null;
@@ -1910,10 +1921,14 @@
       .then(function (menuRows) {
         var m = {};
         menuRows.forEach(function (x) { m[x.id] = Number(x.stock_qty) || 0; });
-        var ops = items.map(function (it) {
-          var nb = (m[it.id] === undefined ? 25 : m[it.id]) + (Number(it.qty) || 1);
-          return upd('menu_items', 'id=eq.' + encodeURIComponent(it.id),
-            { stock_qty: nb, in_stock: nb > 0, updated_at: new Date().toISOString() });
+        var menuFinal = {};
+        items.forEach(function (it) {
+          var prev = (menuFinal[it.id] !== undefined) ? menuFinal[it.id] : (m[it.id] === undefined ? 25 : m[it.id]);
+          menuFinal[it.id] = prev + (Number(it.qty) || 1);
+        });
+        var ops = Object.keys(menuFinal).map(function (mid) {
+          return upd('menu_items', 'id=eq.' + encodeURIComponent(mid),
+            { stock_qty: menuFinal[mid], in_stock: menuFinal[mid] > 0, updated_at: new Date().toISOString() });
         });
         return Promise.all(ops).then(function () { return ids.length; });
       });
@@ -1930,6 +1945,7 @@
             var ingMap = {};
             ingRows.forEach(function (g) { ingMap[g.id] = g; });
             var ops = [], logs = [], restored = 0;
+            var ingFinal = {}; // id bahan -> stok akhir (satu PATCH per bahan, anti race)
             items.forEach(function (orderItem) {
               var qtyVoid = Number(orderItem.qty) || 1;
               (recipeMap[orderItem.id] || []).forEach(function (rec) {
@@ -1938,7 +1954,7 @@
                 var back = (Number(rec.amount) || 0) * qtyVoid;
                 var nb = Math.round(((Number(ing.current_stock) || 0) + back) * 1000) / 1000;
                 ing.current_stock = nb;
-                ops.push(upd('ingredients', 'id=eq.' + encodeURIComponent(ing.id), { current_stock: nb }));
+                ingFinal[ing.id] = nb;
                 logs.push({
                   id: uid('log'), ingredient_id: ing.id, ingredient_name: ing.name,
                   type: 'OUT_VOID', change_qty: back, balance_qty: nb,
@@ -1947,6 +1963,9 @@
                 });
                 restored++;
               });
+            });
+            Object.keys(ingFinal).forEach(function (iid) {
+              ops.push(upd('ingredients', 'id=eq.' + encodeURIComponent(iid), { current_stock: ingFinal[iid] }));
             });
             return Promise.all(ops).then(function () {
               return logs.length ? ins('stock_logs', logs) : null;
