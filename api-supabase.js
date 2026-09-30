@@ -200,7 +200,8 @@
       serviceRate: Number(r.service_rate) || 0, serviceAmount: Number(r.service_amount) || 0,
       paymentMethod: r.payment_method, cashPaid: r.cash_paid,
       cashChange: r.cash_change, paymentReference: r.payment_reference || '',
-      cashier: r.cashier, status: r.status, shiftId: r.shift_id || null
+      cashier: r.cashier, status: r.status, shiftId: r.shift_id || null,
+      clientRef: r.client_ref || null
     };
   }
   function orderToRow(o) {
@@ -214,7 +215,8 @@
       service_rate: Number(o.serviceRate) || 0, service_amount: Number(o.serviceAmount) || 0,
       payment_method: o.paymentMethod, cash_paid: o.cashPaid,
       cash_change: o.cashChange, payment_reference: o.paymentReference || '',
-      cashier: o.cashier, status: o.status, shift_id: o.shiftId || null
+      cashier: o.cashier, status: o.status, shift_id: o.shiftId || null,
+      client_ref: o.clientRef || null
     };
   }
   function rowToEmployee(r) {
@@ -444,7 +446,9 @@
         paymentReference: body.paymentReference || '',
         cashier: body.cashier || 'Kasir 1',
         shiftId: body.shiftId || null,
-        status: 'completed'
+        status: 'completed',
+        // client_ref: idempotensi sinkron offline (kolom opsional, skema bag.12)
+        clientRef: body.client_ref || genClientRef()
       };
       // Jika checkout dari shift aktif: pakai nama pegawai shift sebagai kasir.
       // Tanpa shiftId, perilaku lama dipertahankan (body.cashier || 'Kasir 1').
@@ -471,6 +475,10 @@
             ['discount_type', 'discount_value', 'tax_rate', 'tax_amount', 'service_rate', 'service_amount']
               .forEach(function (c) { delete row[c]; });
           }
+          return ordersHasClientRef();
+        }).then(function (hasRef) {
+          // Kolom client_ref utk idempotensi sinkron offline (skema bagian 12).
+          if (!hasRef) delete row.client_ref;
           return ins('orders', [row]);
         });
       }).then(function () {
@@ -551,7 +559,12 @@
             });
           });
       });
-    }).catch(serverError);
+    }).catch(function (e) {
+      // Jaringan putus di tengah checkout -> lempar lagi agar dispatcher
+      // bisa mengantrekannya ke outbox offline (jangan jadi 500).
+      if (isOfflineError(e)) throw e;
+      return serverError(e);
+    });
   };
 
   // 9. GET /api/pos/summary
@@ -1135,6 +1148,215 @@
       return _hasOrderExt;
     });
   }
+
+  /* ------------------------------------------------------------------ */
+  /* Kompatibilitas skema: kolom orders.client_ref utk idempotensi       */
+  /* sinkronisasi offline (skema bagian 12). Probe sekali, hasil         */
+  /* di-cache — checkout lama tetap jalan.                              */
+  /* ------------------------------------------------------------------ */
+  var _hasClientRef = null;
+  function ordersHasClientRef() {
+    if (_hasClientRef !== null) return Promise.resolve(_hasClientRef);
+    return sel('orders', 'select=client_ref&limit=1').then(function () {
+      _hasClientRef = true;
+      return true;
+    }).catch(function (e) {
+      // Error lain (mis. jaringan) -> anggap kolom ada, biar error aslinya muncul.
+      _hasClientRef = !/client_ref/i.test(String((e && e.message) || ''));
+      return _hasClientRef;
+    });
+  }
+
+  /* ================================================================== */
+  /* MODE OFFLINE / PWA                                                  */
+  /*                                                                     */
+  /* Arsitektur:                                                         */
+  /*  - sw.js meng-cache app shell + GET Supabase (stale-while-revalidate) */
+  /*    sehingga halaman & data menu tetap bisa dibuka tanpa internet.    */
+  /*  - Di sini: checkout yg gagal karena jaringan masuk OUTBOX           */
+  /*    (localStorage). Saat online kembali, syncOutbox() memutar ulang   */
+  /*    antrean FIFO lewat route checkout normal (dapat nomor struk asli  */
+  /*    CWY-..., stok & jurnal ikut terbentuk). client_ref menjamin       */
+  /*    idempotensi: order yg sama tidak tercipta 2x walau sinkron        */
+  /*    diulang.                                                          */
+  /* ================================================================== */
+  var OUTBOX_KEY = 'chewys_outbox_v1';
+
+  function genClientRef() {
+    return 'cr-' + Date.now().toString(36) + '-' +
+      Math.random().toString(36).slice(2, 8);
+  }
+
+  // True bila error berasal dari jaringan putus (bukan error validasi/server).
+  function isOfflineError(e) {
+    if (!e) return false;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+    if (e instanceof TypeError) return true; // fetch: "Failed to fetch" dkk
+    return /failed to fetch|networkerror|load failed|network request failed|fetch failed/i
+      .test(String(e.message || e));
+  }
+
+  function getOutbox() {
+    try {
+      var raw = localStorage.getItem(OUTBOX_KEY);
+      var q = raw ? JSON.parse(raw) : [];
+      return Array.isArray(q) ? q : [];
+    } catch (e) { return []; }
+  }
+  function setOutbox(q) {
+    try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(q)); } catch (e) { /* abaikan */ }
+  }
+  function removeOutboxEntry(clientRef) {
+    setOutbox(getOutbox().filter(function (x) { return x.client_ref !== clientRef; }));
+    updateOfflineBadge();
+  }
+
+  // Memperbarui badge antrean + banner offline di halaman (bila elemennya ada).
+  function updateOfflineBadge() {
+    var n = getOutbox().length;
+    try { window.__chewysOutboxCount = n; } catch (e) {}
+    try {
+      if (typeof document === 'undefined' || !document.getElementById) return;
+      var badge = document.getElementById('offline-queue-badge');
+      if (badge) {
+        badge.style.display = n > 0 ? '' : 'none';
+        var cnt = document.getElementById('offline-queue-count');
+        if (cnt) cnt.textContent = n;
+      }
+      var banner = document.getElementById('offline-banner');
+      if (banner && typeof navigator !== 'undefined') {
+        banner.style.display = navigator.onLine === false ? '' : 'none';
+      }
+    } catch (e) { /* abaikan */ }
+  }
+
+  // Checkout offline -> antrekan; kembalikan respons sukses sintetis dgn
+  // nomor struk sementara agar alur kasir (struk, kosongkan keranjang) jalan.
+  function queueOfflineOrder(body) {
+    var b = body || {};
+    var clientRef = b.client_ref || genClientRef();
+    var tempId = 'OFF-' + getJakartaDateKey() + '-' +
+      Math.random().toString(36).slice(2, 6).toUpperCase();
+    var now = new Date().toISOString();
+    var q = getOutbox();
+    q.push({ client_ref: clientRef, temp_id: tempId, queued_at: now, body: b });
+    setOutbox(q);
+    updateOfflineBadge();
+    var subtotal = Number(b.subtotal) || 0;
+    var discount = Number(b.discount) || 0;
+    var taxAmount = Number(b.taxAmount) || Number(b.tax) || 0;
+    var serviceAmount = Number(b.serviceAmount) || 0;
+    return {
+      success: true, offline: true, temp_id: tempId, client_ref: clientRef,
+      message: 'Tersimpan offline — otomatis disinkron saat internet kembali.',
+      order: {
+        id: tempId, createdAt: now, orderType: b.orderType || 'dine-in',
+        tableOrCustomer: b.tableOrCustomer ||
+          (b.orderType === 'dine-in' ? 'Meja -' : 'Pelanggan Walk-in'),
+        items: b.items || [], subtotal: subtotal, discount: discount,
+        tax: taxAmount, total: Number(b.total) || 0,
+        discountType: b.discountType || '', discountValue: Number(b.discountValue) || 0,
+        taxRate: Number(b.taxRate) || 0, taxAmount: taxAmount,
+        serviceRate: Number(b.serviceRate) || 0, serviceAmount: serviceAmount,
+        paymentMethod: b.paymentMethod || 'cash',
+        cashPaid: Number(b.cashPaid) || Number(b.total) || 0,
+        cashChange: Number(b.cashChange) || 0,
+        paymentReference: b.paymentReference || '',
+        cashier: b.cashier || 'Kasir 1', status: 'completed',
+        shiftId: b.shiftId || null, offline: true, clientRef: clientRef
+      }
+    };
+  }
+
+  var _syncing = false;
+  // Memutar ulang outbox FIFO lewat route checkout normal.
+  // Idempoten: bila order dgn client_ref sudah ada (mis. sinkron sempat
+  // terputus setelah insert), entri antrean dibuang tanpa membuat duplikat.
+  function syncOutbox() {
+    if (_syncing) return Promise.resolve({ synced: 0, busy: true });
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return Promise.resolve({ synced: 0, offline: true });
+    }
+    var q = getOutbox();
+    if (!q.length) { updateOfflineBadge(); return Promise.resolve({ synced: 0 }); }
+    _syncing = true;
+    var done = 0, failed = 0;
+    var chain = Promise.resolve();
+    q.forEach(function (entry) {
+      chain = chain.then(function () {
+        return ordersHasClientRef().then(function (hasRef) {
+          if (!hasRef) return null; // skema lama: lewati cek idempotensi
+          return sel('orders', 'select=id&client_ref=eq.' + encodeURIComponent(entry.client_ref));
+        }).then(function (rows) {
+          if (rows && rows.length) { // sudah tersinkron sebelumnya
+            done++;
+            removeOutboxEntry(entry.client_ref);
+            return null;
+          }
+          var b = {};
+          try { b = JSON.parse(JSON.stringify(entry.body || {})); } catch (e) { b = entry.body || {}; }
+          b.client_ref = entry.client_ref;
+          return routes['POST /api/pos/checkout'](b).then(function (res) {
+            // Route mengembalikan Response; baca status + bodi JSON-nya.
+            var parsed = (res && typeof res.json === 'function')
+              ? res.json().catch(function () { return null; })
+              : Promise.resolve(res);
+            return Promise.resolve(parsed).then(function (data) {
+              var status = (res && res.status) || 200;
+              var msg = String((data && (data.message || data.error)) || '');
+              if (data && data.success !== false && (status === 200 || status === 201)) {
+                done++;
+                removeOutboxEntry(entry.client_ref);
+                return null;
+              }
+              // Pelanggaran unik client_ref = ordernya SUDAH tercipta
+              // (jaringan putus tepat setelah insert) -> anggap tersinkron,
+              // jangan buat duplikat.
+              if (/duplicate key|23505|unique constraint/i.test(msg)) {
+                done++;
+                removeOutboxEntry(entry.client_ref);
+                return null;
+              }
+              throw new Error(msg || 'checkout gagal (status ' + status + ')');
+            });
+          });
+        }).catch(function (e) {
+          if (isOfflineError(e)) throw e; // berhenti; coba lagi nanti
+          failed++; // error data/validasi: biarkan di antrean, lanjutkan yg lain
+          try { console.warn('[offline] sinkron gagal utk', entry.temp_id, e.message || e); } catch (x) {}
+        });
+      });
+    });
+    return chain.then(function () {
+      return { synced: done, failed: failed, remaining: getOutbox().length };
+    }).catch(function () {
+      return { synced: done, failed: failed, remaining: getOutbox().length, offline: true };
+    }).then(function (r) {
+      _syncing = false;
+      updateOfflineBadge();
+      return r;
+    });
+  }
+
+  // Pemicu sinkron otomatis (hanya di browser).
+  try {
+    if (typeof window !== 'undefined') {
+      window.syncOfflineOrders = syncOutbox;
+      window.__chewysOutbox = { queue: getOutbox, sync: syncOutbox };
+      if (typeof window.addEventListener === 'function') {
+        window.addEventListener('online', function () {
+          updateOfflineBadge();
+          setTimeout(syncOutbox, 1500);
+        });
+        window.addEventListener('offline', function () { updateOfflineBadge(); });
+        // Antrean tertinggal dari sesi sebelumnya -> sinkron tak lama setelah load.
+        setTimeout(function () {
+          updateOfflineBadge();
+          if (getOutbox().length) syncOutbox();
+        }, 4000);
+      }
+    }
+  } catch (e) { /* abaikan (Node) */ }
 
   function rowToAccount(r) {
     return { code: r.code, name: r.name, type: r.type || 'aset', normal: r.normal || 'debit', active: r.active !== false };
@@ -2213,8 +2435,25 @@
     var body = parseBody(init || (typeof input !== 'string' ? input : null));
     var query = {};
     url.searchParams.forEach(function (v, k) { query[k] = v; });
+    // Cap client_ref SEBELUM handler jalan: kunci idempotensi yg sama dipakai
+    // percobaan pertama maupun replay sinkron offline (anti duplikat).
+    if (key === 'POST /api/pos/checkout' && body && !body.client_ref) {
+      try { body.client_ref = genClientRef(); } catch (e) {}
+    }
+    // Mode offline: checkout langsung masuk antrean tanpa mencoba jaringan.
+    if (key === 'POST /api/pos/checkout' &&
+        typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return Promise.resolve(json(queueOfflineOrder(body), 201));
+    }
     try {
-      return handler(body, query) || ok({ success: true });
+      var out = handler(body, query) || ok({ success: true });
+      return Promise.resolve(out).catch(function (err) {
+        // Jaringan putus di tengah checkout -> antrekan offline, jangan gagal.
+        if (key === 'POST /api/pos/checkout' && isOfflineError(err)) {
+          return json(queueOfflineOrder(body), 201);
+        }
+        throw err;
+      });
     } catch (err) {
       console.error('[api-supabase] handler error:', err);
       return json({ success: false, message: 'Terjadi kesalahan: ' + err.message }, 500);

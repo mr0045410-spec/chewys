@@ -8,6 +8,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title data-brand-page="pos">Kasir POS · Chewy's Dessert & Coffee</title>
   <link rel="icon" type="image/png" href="./assets/logo-chewys-orange.png">
+  <!-- PWA: bisa di-install & dibuka offline -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#FE6134">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>
@@ -79,8 +85,21 @@
       }
     }
   </style>
+  <script>
+    // Daftarkan Service Worker (PWA / mode offline)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').catch(function () { /* abaikan */ });
+      });
+    }
+  </script>
 </head>
 <body class="h-screen w-screen overflow-hidden flex flex-col bg-[#F5F5F7] select-none">
+  <!-- Banner mode offline (PWA) -->
+  <div id="offline-banner" style="display:none" class="shrink-0 bg-amber-500 text-white text-xs sm:text-sm font-semibold px-3 py-2 flex items-center justify-center gap-2 z-30">
+    <i data-lucide="wifi-off" class="w-4 h-4"></i>
+    <span>Mode Offline — order tetap bisa dibuat &amp; otomatis tersinkron saat internet kembali.</span>
+  </div>
 
   <!-- =========================================================================
        TOP NAVIGATION BAR
@@ -102,6 +121,13 @@
 
     <!-- Quick action links -->
     <div class="flex items-center gap-1.5 sm:gap-3 overflow-x-auto min-w-0">
+      <!-- Antrean sinkron offline (PWA) -->
+      <button id="offline-queue-badge" style="display:none" onclick="if(window.syncOfflineOrders) window.syncOfflineOrders()" title="Order offline menunggu sinkron — klik untuk sinkron sekarang"
+        class="items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 hover:bg-amber-100 font-semibold text-xs shrink-0 transition-colors flex">
+        <i data-lucide="cloud-off" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">Menunggu sinkron</span>
+        <span id="offline-queue-count" class="bg-amber-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">0</span>
+      </button>
       <!-- Shift aktif -->
       <div id="shift-badge" class="hidden items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs shrink-0 min-w-0"></div>
       <button id="btn-close-shift" onclick="openShiftCloseModal()" class="hidden px-2 sm:px-3.5 py-1.5 rounded-xl shrink-0 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 font-semibold text-xs gap-1.5 transition-colors">
@@ -1435,7 +1461,8 @@
           closePaymentModal();
           renderReceipt(result.order);
           document.getElementById('receipt-modal').classList.remove('hidden');
-          await initPOS(); // Real-time refresh stock in menu catalog
+          if (result.offline) toast('Mode offline: order tersimpan & otomatis disinkron saat internet kembali.', 'warning');
+          try { await initPOS(); } catch (e) { /* offline: lewati refresh */ }
         } else {
           toast('Gagal memproses transaksi: ' + (result.message || 'Error server'), 'error');
         }
@@ -1490,6 +1517,7 @@
             <span>No: <strong>${order.id}</strong></span>
             <span>${orderDate}</span>
           </div>
+          ${order.offline ? '<div class="text-center text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 my-1">ORDER OFFLINE — nomor sementara, otomatis disinkron</div>' : ''}
           <div class="flex justify-between">
             <span>Kasir: ${order.cashier || 'Kasir 1'}</span>
             <span class="uppercase font-bold">${order.orderType} (${order.tableOrCustomer})</span>

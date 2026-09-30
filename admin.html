@@ -8,6 +8,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-brand-page="admin">Admin Dashboard · Chewy's Dessert Stok & Menu</title>
   <link rel="icon" type="image/png" href="./assets/logo-chewys-orange.png">
+  <!-- PWA: bisa di-install & dibuka offline -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#FE6134">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').catch(function () { /* abaikan */ });
+      });
+    }
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>
