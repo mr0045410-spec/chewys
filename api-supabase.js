@@ -340,7 +340,7 @@
       return ins('orders', [orderToRow(newOrder)]).then(function () {
         // Kurangi stok menu
         var ids = body.items.map(function (i) { return i.id; });
-        return sel('menu_items', 'select=id,stock_qty& id=in.(' + ids.map(encodeURIComponent).join(',') + ')')
+        return sel('menu_items', 'select=id,stock_qty&id=in.(' + ids.map(encodeURIComponent).join(',') + ')')
           .then(function (menuRows) {
             var stockMap = {};
             menuRows.forEach(function (m) { stockMap[m.id] = m.stock_qty; });
@@ -736,41 +736,44 @@
           calculatedCost += amount * (Number(ing.cost_per_unit) || 0);
         }
       });
-      // upsert resep
-      return sel('recipes', 'select=menu_id&menu_id=eq.' + encodeURIComponent(menuId)).then(function (ex) {
-        var op = ex.length
-          ? upd('recipes', 'menu_id=eq.' + encodeURIComponent(menuId), { items: cleanItems })
-          : ins('recipes', [{ menu_id: menuId, items: cleanItems }]);
-        return op.then(function () {
-          // buat / update menu
-          return sel('menu_items', 'select=*&id=eq.' + encodeURIComponent(menuId)).then(function (mrows) {
-            var formattedPrice = body.price
-              ? (String(body.price).startsWith('Rp') ? body.price : formatRp(String(body.price).replace(/[^0-9]/g, '')))
-              : 'Rp 25.000';
-            var costP = Math.round(calculatedCost);
-            if (!mrows.length) {
-              var item = {
-                id: menuId, name: body.name, category: body.category || 'bomboloni',
-                tag: 'Menu Baru', description: "Kreasi dessert terbaru dari dapur Chewy's.",
-                price: formattedPrice, bundleInfo: '', safeForShipping: true,
-                stockQty: 25, inStock: true,
-                image: body.image || DEFAULT_MENU_IMG,
-                highlightTexture: 'Freshly baked daily', costPrice: costP
-              };
-              return ins('menu_items', [menuItemToRow(item)]).then(function (nr) {
-                return { menuItem: rowToMenuItem(nr[0]), recipe: cleanItems, calculatedHpp: costP };
-              });
-            }
-            return upd('menu_items', 'id=eq.' + encodeURIComponent(menuId), {
-              name: body.name,
-              category: body.category || undefined,
-              price: body.price ? formattedPrice : undefined,
-              price_value: body.price ? parsePriceToNumber(body.price) : undefined,
-              image: body.image || undefined,
-              cost_price: costP, updated_at: new Date().toISOString()
-            }).then(function (ur) {
-              return { menuItem: rowToMenuItem(ur[0]), recipe: cleanItems, calculatedHpp: costP };
-            });
+      // 1. Pastikan MENU ada dulu (FK recipes -> menu_items),
+      //    baru simpan resep. Urutan kebalik = FK violation.
+      var formattedPrice = body.price
+        ? (String(body.price).startsWith('Rp') ? body.price : formatRp(String(body.price).replace(/[^0-9]/g, '')))
+        : 'Rp 25.000';
+      var costP = Math.round(calculatedCost);
+      return sel('menu_items', 'select=*&id=eq.' + encodeURIComponent(menuId)).then(function (mrows) {
+        var menuOp;
+        if (!mrows.length) {
+          var item = {
+            id: menuId, name: body.name, category: body.category || 'bomboloni',
+            tag: 'Menu Baru', description: "Kreasi dessert terbaru dari dapur Chewy's.",
+            price: formattedPrice, bundleInfo: '', safeForShipping: true,
+            stockQty: 25, inStock: true,
+            image: body.image || DEFAULT_MENU_IMG,
+            highlightTexture: 'Freshly baked daily', costPrice: costP
+          };
+          menuOp = ins('menu_items', [menuItemToRow(item)]).then(function (nr) { return nr[0]; });
+        } else {
+          var patch = {
+            name: body.name,
+            cost_price: costP, updated_at: new Date().toISOString()
+          };
+          if (body.category) patch.category = body.category;
+          if (body.price) { patch.price = formattedPrice; patch.price_value = parsePriceToNumber(body.price); }
+          if (body.image) patch.image = body.image;
+          menuOp = upd('menu_items', 'id=eq.' + encodeURIComponent(menuId), patch)
+            .then(function (ur) { return ur[0]; });
+        }
+        return menuOp;
+      }).then(function (menuRow) {
+        // 2. Baru upsert resep
+        return sel('recipes', 'select=menu_id&menu_id=eq.' + encodeURIComponent(menuId)).then(function (ex) {
+          var op = ex.length
+            ? upd('recipes', 'menu_id=eq.' + encodeURIComponent(menuId), { items: cleanItems })
+            : ins('recipes', [{ menu_id: menuId, items: cleanItems }]);
+          return op.then(function () {
+            return { menuItem: rowToMenuItem(menuRow), recipe: cleanItems, calculatedHpp: costP };
           });
         });
       });
