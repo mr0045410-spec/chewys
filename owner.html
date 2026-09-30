@@ -1178,9 +1178,10 @@
           <label class="text-xs font-bold text-stone-600 mb-1.5 block">PIN Owner *</label>
           <input id="void-pin" type="password" maxlength="6" inputmode="numeric" placeholder="PIN owner" class="w-full px-3 py-2.5 rounded-2xl border border-stone-300 text-sm font-mono focus:outline-none focus:border-rose-400" />
         </div>
+        <div id="void-confirm-warn" class="hidden bg-amber-50 border border-amber-300 rounded-2xl p-3 text-amber-800 text-[11px] leading-relaxed"></div>
         <div class="flex gap-2 pt-1">
           <button type="button" onclick="closeVoidModal()" class="flex-1 px-4 py-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold transition-colors">Batal</button>
-          <button type="button" onclick="submitVoidOrder()" class="flex-1 px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold transition-colors">Void Sekarang</button>
+          <button type="button" id="void-submit-btn" onclick="submitVoidOrder()" class="flex-1 px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold transition-colors">Void Sekarang</button>
         </div>
       </div>
     </div>
@@ -2014,9 +2015,14 @@
     }
 
     // --- Void order: modal konfirmasi (alasan + PIN owner) ---
+    // Konfirmasi 2 langkah di dalam modal (tanpa native confirm(),
+    // supaya bisa diuji otomatis dan UX lebih konsisten).
     let voidTarget = null;
+    let voidArmed = false;
+    let voidArmTimer = null;
     function openVoidModal(orderId, total) {
       voidTarget = { id: orderId, total };
+      disarmVoid();
       document.getElementById('void-order-id').textContent = orderId;
       document.getElementById('void-order-total').textContent = formatRupiah(total);
       document.getElementById('void-reason').value = '';
@@ -2027,6 +2033,15 @@
     function closeVoidModal() {
       document.getElementById('void-modal').classList.add('hidden');
       voidTarget = null;
+      disarmVoid();
+    }
+    function disarmVoid() {
+      voidArmed = false;
+      if (voidArmTimer) { clearTimeout(voidArmTimer); voidArmTimer = null; }
+      const btn = document.getElementById('void-submit-btn');
+      const warn = document.getElementById('void-confirm-warn');
+      if (btn) { btn.textContent = 'Void Sekarang'; btn.classList.remove('bg-amber-600', 'hover:bg-amber-700'); btn.classList.add('bg-rose-600', 'hover:bg-rose-700'); }
+      if (warn) warn.classList.add('hidden');
     }
     async function submitVoidOrder() {
       if (!voidTarget) return;
@@ -2034,7 +2049,19 @@
       const pin = document.getElementById('void-pin').value.trim();
       if (!reason) { alert('Alasan void wajib diisi.'); return; }
       if (!pin) { alert('PIN owner wajib diisi.'); return; }
-      if (!confirm(`Void order ${voidTarget.id} (${formatRupiah(voidTarget.total)})?\nJurnal penjualan & HPP akan dibalik otomatis, stok dikembalikan.\nAlasan: ${reason}`)) return;
+      if (!voidArmed) {
+        voidArmed = true;
+        const warn = document.getElementById('void-confirm-warn');
+        if (warn) {
+          warn.innerHTML = `Yakin void <strong class="font-mono">${escapeOwnerHtml(voidTarget.id)}</strong> (${formatRupiah(voidTarget.total)})? Jurnal penjualan &amp; HPP akan dibalik otomatis, stok dikembalikan, tidak bisa dibatalkan.<br>Alasan: ${escapeOwnerHtml(reason)}`;
+          warn.classList.remove('hidden');
+        }
+        const btn = document.getElementById('void-submit-btn');
+        if (btn) { btn.textContent = '⚠️ Klik lagi untuk konfirmasi'; btn.classList.remove('bg-rose-600', 'hover:bg-rose-700'); btn.classList.add('bg-amber-600', 'hover:bg-amber-700'); }
+        voidArmTimer = setTimeout(disarmVoid, 15000);
+        return;
+      }
+      if (voidArmTimer) { clearTimeout(voidArmTimer); voidArmTimer = null; }
       try {
         const res = await fetch('/api/orders/void', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
