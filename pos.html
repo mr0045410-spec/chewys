@@ -161,15 +161,22 @@
           </button>
         </div>
 
-        <!-- Category Pills (Horizontal scrollable) -->
-        <div id="category-pills" class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none text-xs">
+        <!-- Category Pills (mobile/tablet — di desktop diganti category rail ala Moka) -->
+        <div id="category-pills" class="flex lg:hidden items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none text-xs">
           <!-- Injected via JS -->
         </div>
       </div>
 
-      <!-- Products Grid -->
-      <div id="products-grid" class="flex-1 overflow-y-auto p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 content-start">
-        <!-- Injected via JS -->
+      <!-- Products + Category Rail (ala Moka) -->
+      <div class="flex-1 flex overflow-hidden">
+        <!-- Products Grid -->
+        <div id="products-grid" class="flex-1 overflow-y-auto p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 content-start">
+          <!-- Injected via JS -->
+        </div>
+        <!-- Category Rail: shortcut kategori vertikal ala Moka (desktop) -->
+        <nav id="category-rail" aria-label="Kategori" class="hidden lg:flex flex-col items-center gap-2 w-[72px] shrink-0 overflow-y-auto py-4 px-2 bg-white border-l border-stone-200">
+          <!-- Injected via JS -->
+        </nav>
       </div>
     </main>
 
@@ -210,6 +217,12 @@
             <i data-lucide="bike" class="w-3.5 h-3.5"></i><span>Ojek Online</span>
           </button>
         </div>
+
+        <!-- Add Customer (ala Moka) -->
+        <button type="button" onclick="document.getElementById('order-table-customer').focus()"
+                class="w-full py-1.5 rounded-xl border border-dashed border-stone-300 text-stone-500 hover:text-bakery-orange hover:border-bakery-orange text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+          <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> + Tambah Pelanggan
+        </button>
 
         <!-- Customer Name / Table Number Input -->
         <div class="relative">
@@ -272,11 +285,11 @@
           </div>
         </div>
 
-        <!-- Big Checkout Button -->
+        <!-- Big Charge Button (ala Moka, warna tetap Chewy's) -->
         <button id="btn-checkout" onclick="openPaymentModal()" disabled 
-                class="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-stone-300 disabled:cursor-not-allowed text-white font-bold text-sm sm:text-base shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 active:scale-98">
-          <i data-lucide="check-circle" class="w-5 h-5"></i>
-          <span id="btn-checkout-label">Bayar Sekarang (Rp 0)</span>
+                class="w-full py-4 px-4 rounded-2xl bg-bakery-orange hover:bg-bakery-orange-hover disabled:bg-stone-300 disabled:cursor-not-allowed text-white font-extrabold text-base sm:text-lg shadow-lg shadow-orange-500/30 transition-all flex items-center justify-center gap-2 active:scale-98">
+          <i data-lucide="wallet" class="w-5 h-5"></i>
+          <span id="btn-checkout-label">Bayar Rp 0</span>
         </button>
       </div>
     </aside>
@@ -904,6 +917,29 @@
       });
 
       container.innerHTML = html;
+      renderCategoryRail();
+    }
+
+    // Render Category Rail (shortcut kategori vertikal ala Moka, desktop only)
+    function renderCategoryRail() {
+      const rail = document.getElementById('category-rail');
+      if (!rail || typeof categories === 'undefined') return;
+      const abbrev = (name) => {
+        const words = String(name).trim().split(/\s+/);
+        if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+        return String(name).substring(0, 2).toUpperCase();
+      };
+      const tile = (id, label, title, active) => `
+        <button type="button" onclick="setCategory('${id}')" title="${title}"
+          class="w-12 h-12 rounded-xl font-extrabold text-sm flex items-center justify-center transition-all shrink-0
+                 ${active ? 'bg-bakery-orange text-white shadow-md shadow-orange-500/30' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}">
+          ${label}
+        </button>`;
+      let html = tile('all', 'All', 'Semua', currentCategory === 'all');
+      categories.filter(c => c.id !== 'all').forEach(cat => {
+        html += tile(cat.id, abbrev(cat.name), cat.name, currentCategory === cat.id);
+      });
+      rail.innerHTML = html;
     }
 
     function setCategory(catId) {
@@ -1226,7 +1262,7 @@
       if (taxEl) taxEl.textContent = formatRupiah(taxAmount);
       if (svcEl) svcEl.textContent = formatRupiah(serviceAmount);
       document.getElementById('bill-total').textContent = formatRupiah(grandTotal);
-      document.getElementById('btn-checkout-label').textContent = `Bayar Sekarang (${formatRupiah(grandTotal)})`;
+      document.getElementById('btn-checkout-label').textContent = `Bayar ${formatRupiah(grandTotal)}`;
 
       const btnCheckout = document.getElementById('btn-checkout');
       btnCheckout.disabled = cart.length === 0;
