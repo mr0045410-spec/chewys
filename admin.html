@@ -477,9 +477,9 @@
                     </span>
                   </div>
                   <div class="flex items-center gap-1">
-                    <button onclick="adjustStock('${item.id}', -1)" title="Kurangi 1" class="w-6 h-6 rounded-lg bg-white border border-stone-200 hover:bg-stone-100 flex items-center justify-center font-bold text-xs text-stone-700 shadow-2xs">-</button>
-                    <button onclick="adjustStock('${item.id}', 1)" title="Tambah 1" class="w-6 h-6 rounded-lg bg-white border border-stone-200 hover:bg-stone-100 flex items-center justify-center font-bold text-xs text-stone-700 shadow-2xs">+</button>
-                    <button onclick="adjustStock('${item.id}', 10)" title="Tambah 10 (Restock Batch)" class="px-2 h-6 rounded-lg bg-emerald-100 border border-emerald-300 hover:bg-emerald-200 text-emerald-800 font-bold text-[10px] shadow-2xs">+10</button>
+                    <button onclick="adjustStock('${item.id}', -1)" title="Kurangi 1" class="w-9 h-9 rounded-lg bg-white border border-stone-200 hover:bg-stone-100 flex items-center justify-center font-bold text-sm text-stone-700 shadow-2xs">-</button>
+                    <button onclick="adjustStock('${item.id}', 1)" title="Tambah 1" class="w-9 h-9 rounded-lg bg-white border border-stone-200 hover:bg-stone-100 flex items-center justify-center font-bold text-sm text-stone-700 shadow-2xs">+</button>
+                    <button onclick="adjustStock('${item.id}', 10)" title="Tambah 10 (Restock Batch)" class="px-3 h-9 rounded-lg bg-emerald-100 border border-emerald-300 hover:bg-emerald-200 text-emerald-800 font-bold text-xs shadow-2xs">+10</button>
                   </div>
                 </div>
               </div>
@@ -501,11 +501,11 @@
               <!-- Edit & Delete Buttons -->
               <div class="flex items-center gap-1">
                 <button onclick="openMenuModal('${item.id}')" title="Edit Menu" 
-                        class="p-2 rounded-xl text-stone-500 hover:text-bakery-orange hover:bg-orange-50 border border-stone-200 transition-colors">
+                        class="p-2.5 rounded-xl text-stone-500 hover:text-bakery-orange hover:bg-orange-50 border border-stone-200 transition-colors">
                   <i data-lucide="edit-3" class="w-4 h-4"></i>
                 </button>
                 <button onclick="deleteMenu('${item.id}', '${item.name.replace(/'/g, "\\'")}')" title="Hapus Menu" 
-                        class="p-2 rounded-xl text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-stone-200 transition-colors">
+                        class="p-2.5 rounded-xl text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-stone-200 transition-colors">
                   <i data-lucide="trash-2" class="w-4 h-4"></i>
                 </button>
               </div>
@@ -680,7 +680,7 @@
 
     // --- Delete Menu ---
     async function deleteMenu(id, name) {
-      if (!confirm(`Yakin ingin menghapus menu "${name}"?`)) return;
+      if (!await askConfirm(`Yakin ingin menghapus menu "${name}"?`)) return;
 
       try {
         const resp = await fetch('/api/menu', {
@@ -727,6 +727,32 @@
 
     // Init icons
     lucide.createIcons();
+  </script>
+
+  <!-- Konfirmasi in-app (pengganti confirm bawaan browser) -->
+  <div id="confirm-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40" onclick="closeConfirm(false)"></div>
+    <div class="relative bg-white rounded-2xl p-5 w-full max-w-xs shadow-xl">
+      <p id="confirm-msg" class="text-sm text-stone-700 mb-4 leading-relaxed"></p>
+      <div class="flex gap-2 justify-end">
+        <button type="button" onclick="closeConfirm(false)" class="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold transition-colors">Batal</button>
+        <button type="button" onclick="closeConfirm(true)" class="px-4 py-2 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-sm font-bold transition-colors">Ya, Lanjutkan</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    let _confirmResolve = null;
+    function askConfirm(msg) {
+      return new Promise(resolve => {
+        document.getElementById('confirm-msg').textContent = msg;
+        document.getElementById('confirm-modal').classList.remove('hidden');
+        _confirmResolve = resolve;
+      });
+    }
+    function closeConfirm(yes) {
+      document.getElementById('confirm-modal').classList.add('hidden');
+      if (_confirmResolve) { const r = _confirmResolve; _confirmResolve = null; r(!!yes); }
+    }
   </script>
 </body>
 </html>

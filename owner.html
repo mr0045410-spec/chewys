@@ -175,7 +175,7 @@
 
     <!-- PRIMARY OWNER NAVIGATION TABS -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-stone-200">
-      <div class="flex items-center gap-2 overflow-x-auto min-w-0">
+      <div class="flex items-center gap-2 overflow-x-auto min-w-0 sm:flex-wrap sm:overflow-visible">
         <button onclick="switchOwnerView('finance')" id="view-tab-finance" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-[#2D1406] text-white shadow-xs transition-all">
           <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
           <span>Laporan Keuangan & Omset</span>
@@ -350,10 +350,9 @@
             <i data-lucide="sparkles" class="w-4 h-4"></i>
             <span data-brand-text="insightLabel">INSIGHT BISNIS CHEWY'S</span>
           </div>
-          <h4 class="text-base font-extrabold leading-snug">Evaluasi Performa Dapur</h4>
-          <p class="text-xs text-stone-300 mt-2 leading-relaxed">
-            Periksa grafik jam sibuk untuk menentukan jam operasional penggorengan bomboloni panas dan penambahan staf barista saat rush hour.
-          </p>
+          <h4 id="insight-title" class="text-base font-extrabold leading-snug">Memuat insight...</h4>
+          <div id="insight-body" class="text-xs text-stone-300 mt-2 leading-relaxed space-y-1.5">
+          </div>
         </div>
         <div class="pt-4 border-t border-white/10 flex items-center justify-between text-xs">
           <span class="text-stone-300 font-medium">Laporan Akuntansi</span>
@@ -1727,6 +1726,7 @@
           renderCategoryChart(analyticsData.categoryBreakdown);
           renderPaymentBreakdown(analyticsData.paymentStats);
           renderProfitabilityTable(analyticsData.menuProfitability);
+          renderInsightCard(analyticsData);
           renderRecentOrders(analyticsData.recentOrders);
         }
       } catch (err) {
@@ -1979,6 +1979,33 @@
       `).join('');
     }
 
+    // Insight bisnis berbasis data periode berjalan (bukan teks statis)
+    function renderInsightCard(a = {}) {
+      const title = document.getElementById('insight-title');
+      const body = document.getElementById('insight-body');
+      if (!title || !body) return;
+      const menus = a.menuProfitability || [];
+      const peaks = (a.peakHours || []).filter(p => (p.count || 0) > 0);
+      if (!menus.length && !peaks.length) {
+        title.textContent = 'Belum ada data';
+        body.innerHTML = '<p>Insight otomatis akan muncul setelah ada penjualan pada periode ini.</p>';
+        return;
+      }
+      const insights = [];
+      if (menus.length) {
+        const best = [...menus].sort((x, y) => (y.qty || 0) - (x.qty || 0))[0];
+        if (best && (best.qty || 0) > 0) insights.push(`<p><span class="text-amber-400 font-bold">Terlaris:</span> ${best.name} — ${best.qty} porsi terjual.</p>`);
+        const topMargin = [...menus].sort((x, y) => (y.marginPercent || 0) - (x.marginPercent || 0))[0];
+        if (topMargin && topMargin !== best) insights.push(`<p><span class="text-amber-400 font-bold">Margin tertinggi:</span> ${topMargin.name} (${topMargin.marginPercent}%).</p>`);
+      }
+      if (peaks.length) {
+        const pk = [...peaks].sort((x, y) => (y.count || 0) - (x.count || 0))[0];
+        insights.push(`<p><span class="text-amber-400 font-bold">Jam tersibuk:</span> ${pk.hour} — siapkan stok & staf ekstra.</p>`);
+      }
+      title.textContent = 'Sorotan Periode Ini';
+      body.innerHTML = insights.slice(0, 3).join('');
+    }
+
     // Render Recent Orders Table
     function renderRecentOrders(orders = []) {
       const container = document.getElementById('recent-orders-table-body');
@@ -2017,7 +2044,7 @@
     }
 
     // --- Void order: modal konfirmasi (alasan + PIN owner) ---
-    // Konfirmasi 2 langkah di dalam modal (tanpa native confirm(),
+    // Konfirmasi 2 langkah di dalam modal (tanpa native await askConfirm(),
     // supaya bisa diuji otomatis dan UX lebih konsisten).
     let voidTarget = null;
     let voidArmed = false;
@@ -2164,10 +2191,10 @@
           closeCostModal();
           loadAnalytics();
         } else {
-          alert('Gagal update HPP: ' + (data.message || 'Error server'));
+          toast('Gagal update HPP: ' + (data.message || 'Error server'), 'error');
         }
       } catch (err) {
-        alert('Koneksi gagal');
+        toast('Koneksi gagal', 'error');
       }
     }
 
@@ -2427,7 +2454,7 @@
     }
 
     async function toggleEmployeeActive(id, active) {
-      if (!confirm(active ? 'Aktifkan kembali pegawai ini?' : 'Nonaktifkan pegawai ini? (PIN-nya tidak bisa dipakai buka shift)')) return;
+      if (!await askConfirm(active ? 'Aktifkan kembali pegawai ini?' : 'Nonaktifkan pegawai ini? (PIN-nya tidak bisa dipakai buka shift)')) return;
       try {
         const res = await fetch('/api/owner/employees/set-active', {
           method: 'POST',
@@ -2436,9 +2463,9 @@
         });
         const data = await res.json();
         if (data.success) await loadStaffData();
-        else alert(data.message || 'Gagal mengubah status.');
+        else toast(data.message || 'Gagal mengubah status.', 'error');
       } catch (err) {
-        alert('Koneksi gagal.');
+        toast('Koneksi gagal.', 'error');
       }
     }
 
@@ -2510,7 +2537,7 @@
         if (status) { status.textContent = '✓ Pengaturan tersimpan. Kasir POS akan memakai tarif baru.'; status.className = 'text-[11px] text-emerald-600 mt-2'; }
         setTimeout(() => { if (status) { status.textContent = ''; status.className = 'text-[11px] text-stone-400 mt-2'; } }, 4000);
       } catch (err) {
-        alert('Gagal menyimpan pengaturan: ' + err.message);
+        toast('Gagal menyimpan pengaturan: ' + err.message, 'error');
       }
     }
 
@@ -2585,18 +2612,18 @@
         const res = await fetch('/api/owner/accounts/upsert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const data = await res.json();
         if (data.success) { closeModal('account-modal'); await loadAccountingData(); }
-        else alert(data.message || 'Gagal menyimpan akun.');
-      } catch (err) { alert('Koneksi gagal.'); }
+        else toast(data.message || 'Gagal menyimpan akun.', 'error');
+      } catch (err) { toast('Koneksi gagal.', 'error'); }
     }
 
     async function toggleAccountActive(code, active) {
-      if (!confirm(active ? 'Aktifkan kembali akun ini?' : 'Nonaktifkan akun ini? (Akun tidak bisa dipakai di jurnal baru)')) return;
+      if (!await askConfirm(active ? 'Aktifkan kembali akun ini?' : 'Nonaktifkan akun ini? (Akun tidak bisa dipakai di jurnal baru)')) return;
       try {
         const res = await fetch('/api/owner/accounts/set-active', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, active: active }) });
         const data = await res.json();
         if (data.success) await loadAccountingData();
-        else alert(data.message || 'Gagal mengubah status.');
-      } catch (err) { alert('Koneksi gagal.'); }
+        else toast(data.message || 'Gagal mengubah status.', 'error');
+      } catch (err) { toast('Koneksi gagal.', 'error'); }
     }
 
     async function loadJournal() {
@@ -2685,7 +2712,7 @@
       });
       const td = lines.reduce((s, l) => s + l.debit, 0);
       const tk = lines.reduce((s, l) => s + l.kredit, 0);
-      if (td !== tk || td <= 0) { alert('Jurnal tidak balance: total debit harus sama dengan total kredit dan lebih dari 0.'); return; }
+      if (td !== tk || td <= 0) { toast('Jurnal tidak balance: total debit harus sama dengan total kredit dan lebih dari 0.', 'error'); return; }
       try {
         const res = await fetch('/api/owner/journal/manual', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2693,20 +2720,20 @@
         });
         const data = await res.json();
         if (data.success) { closeModal('mj-modal'); await loadJournal(); await loadProfitLoss(); await loadBalanceSheet(); }
-        else alert(data.message || 'Gagal menyimpan jurnal.');
-      } catch (err) { alert('Koneksi gagal.'); }
+        else toast(data.message || 'Gagal menyimpan jurnal.', 'error');
+      } catch (err) { toast('Koneksi gagal.', 'error'); }
     }
 
     async function runBackfill() {
-      if (!confirm('Buat jurnal otomatis untuk penjualan, waste, restock, dan terima PO lama yang belum punya jurnal? (Aman diulang, tidak duplikat)')) return;
+      if (!await askConfirm('Buat jurnal otomatis untuk penjualan, waste, restock, dan terima PO lama yang belum punya jurnal? (Aman diulang, tidak duplikat)')) return;
       try {
         const res = await fetch('/api/owner/journal/backfill', { method: 'POST' });
         const data = await res.json();
         if (data.success) {
-          alert('Backfill selesai.\n' + (data.message || (data.created + ' jurnal dibuat.')));
+          toast('Backfill selesai. ' + (data.message || (data.created + ' jurnal dibuat.')));
           await loadJournal(); await loadProfitLoss(); await loadBalanceSheet();
-        } else alert(data.message || 'Backfill gagal.');
-      } catch (err) { alert('Koneksi gagal.'); }
+        } else toast(data.message || 'Backfill gagal.', 'error');
+      } catch (err) { toast('Koneksi gagal.', 'error'); }
     }
 
     async function loadProfitLoss() {
@@ -2869,18 +2896,18 @@
         const res = await fetch('/api/owner/suppliers/upsert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const data = await res.json();
         if (data.success) { closeModal('supplier-modal'); await loadPOData(); }
-        else alert(data.message || 'Gagal menyimpan supplier.');
-      } catch (err) { alert('Koneksi gagal.'); }
+        else toast(data.message || 'Gagal menyimpan supplier.', 'error');
+      } catch (err) { toast('Koneksi gagal.', 'error'); }
     }
 
     async function toggleSupplierActive(id, active) {
-      if (!confirm(active ? 'Aktifkan kembali supplier ini?' : 'Nonaktifkan supplier ini?')) return;
+      if (!await askConfirm(active ? 'Aktifkan kembali supplier ini?' : 'Nonaktifkan supplier ini?')) return;
       try {
         const res = await fetch('/api/owner/suppliers/set-active', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, active }) });
         const data = await res.json();
         if (data.success) await loadPOData();
-        else alert(data.message || 'Gagal mengubah status.');
-      } catch (err) { alert('Koneksi gagal.'); }
+        else toast(data.message || 'Gagal mengubah status.', 'error');
+      } catch (err) { toast('Koneksi gagal.', 'error'); }
     }
 
     function renderPOs() {
@@ -2904,7 +2931,7 @@
     function openPOModal() {
       const sel = document.getElementById('po-form-supplier');
       const active = poSuppliers.filter(s => s.active);
-      if (!active.length) { alert('Tambah supplier aktif dulu sebelum membuat PO.'); return; }
+      if (!active.length) { toast('Tambah supplier aktif dulu sebelum membuat PO.', 'warn'); return; }
       sel.innerHTML = active.map(s => '<option value="' + s.id + '">' + escapeOwnerHtml(s.name) + '</option>').join('');
       document.getElementById('po-form-notes').value = '';
       document.getElementById('po-items').innerHTML = '';
@@ -2955,7 +2982,7 @@
         const price = Number(r.querySelector('.po-item-price').value) || 0;
         if (qty > 0 && price >= 0) items.push({ ingredient_id: r.querySelector('.po-item-ing').value, qty: qty, unit_price: price });
       });
-      if (!items.length) { alert('Isi minimal 1 item dengan qty lebih dari 0.'); return; }
+      if (!items.length) { toast('Isi minimal 1 item dengan qty lebih dari 0.', 'warn'); return; }
       try {
         const res = await fetch('/api/owner/purchase-orders/create', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2963,8 +2990,8 @@
         });
         const data = await res.json();
         if (data.success) { closeModal('po-modal'); await loadPOData(); viewPODetail(data.po.id); }
-        else alert(data.message || 'Gagal membuat PO.');
-      } catch (err) { alert('Koneksi gagal.'); }
+        else toast(data.message || 'Gagal membuat PO.', 'error');
+      } catch (err) { toast('Koneksi gagal.', 'error'); }
     }
 
     async function viewPODetail(id) {
@@ -3010,34 +3037,34 @@
     }
 
     async function sendPO(id) {
-      if (!confirm('Kirim PO ini ke supplier? Status berubah jadi "Dikirim".')) return;
+      if (!await askConfirm('Kirim PO ini ke supplier? Status berubah jadi "Dikirim".')) return;
       try {
         const res = await fetch('/api/owner/purchase-orders/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
         const data = await res.json();
-        if (data.success) { await loadPOData(); viewPODetail(id); } else alert(data.message || 'Gagal mengirim PO.');
-      } catch (err) { alert('Koneksi gagal.'); }
+        if (data.success) { await loadPOData(); viewPODetail(id); } else toast(data.message || 'Gagal mengirim PO.', 'error');
+      } catch (err) { toast('Koneksi gagal.', 'error'); }
     }
 
     async function receivePO(id, paid) {
       const msg = paid
         ? 'Terima barang & catat pembayaran TUNAI? Stok bahan bertambah dan jurnal pembelian tercatat.'
         : 'Terima barang dengan status KREDIT (hutang usaha)? Stok bahan bertambah dan jurnal hutang tercatat.';
-      if (!confirm(msg)) return;
+      if (!await askConfirm(msg)) return;
       try {
         const res = await fetch('/api/owner/purchase-orders/receive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id, paid: paid }) });
         const data = await res.json();
-        if (data.success) { await loadPOData(); viewPODetail(id); alert('PO diterima. ' + data.results.itemsReceived + ' item masuk stok.'); }
-        else alert(data.message || 'Gagal menerima PO.');
-      } catch (err) { alert('Koneksi gagal.'); }
+        if (data.success) { await loadPOData(); viewPODetail(id); toast('PO diterima. ' + data.results.itemsReceived + ' item masuk stok.'); }
+        else toast(data.message || 'Gagal menerima PO.', 'error');
+      } catch (err) { toast('Koneksi gagal.', 'error'); }
     }
 
     async function cancelPO(id) {
-      if (!confirm('Batalkan PO ini?')) return;
+      if (!await askConfirm('Batalkan PO ini?')) return;
       try {
         const res = await fetch('/api/owner/purchase-orders/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
         const data = await res.json();
-        if (data.success) { await loadPOData(); viewPODetail(id); } else alert(data.message || 'Gagal membatalkan PO.');
-      } catch (err) { alert('Koneksi gagal.'); }
+        if (data.success) { await loadPOData(); viewPODetail(id); } else toast(data.message || 'Gagal membatalkan PO.', 'error');
+      } catch (err) { toast('Koneksi gagal.', 'error'); }
     }
 
     async function fetchIngredientsSummaryBadge() {      try {
@@ -3354,10 +3381,10 @@
           closeRestockModal();
           loadIngredients();
         } else {
-          alert('Gagal restock: ' + (data.message || 'Error server'));
+          toast('Gagal restock: ' + (data.message || 'Error server'), 'error');
         }
       } catch (err) {
-        alert('Koneksi ke server gagal');
+        toast('Koneksi ke server gagal', 'error');
       }
     }
 
@@ -3419,17 +3446,17 @@
           closeIngredientModal();
           loadIngredients();
         } else {
-          alert('Gagal simpan bahan: ' + (data.message || 'Error server'));
+          toast('Gagal simpan bahan: ' + (data.message || 'Error server'), 'error');
         }
       } catch (err) {
-        alert('Koneksi ke server gagal');
+        toast('Koneksi ke server gagal', 'error');
       }
     }
 
     async function deleteIngredient(id) {
       const item = allIngredientsList.find(i => i.id === id);
       const name = item ? item.name : 'bahan ini';
-      if (!confirm(`Yakin ingin menghapus bahan baku "${name}"?`)) return;
+      if (!await askConfirm(`Yakin ingin menghapus bahan baku "${name}"?`)) return;
 
       try {
         const res = await fetch('/api/owner/ingredients/delete', {
@@ -3441,10 +3468,10 @@
         if (data.success) {
           loadIngredients();
         } else {
-          alert('Gagal hapus: ' + (data.message || 'Error server'));
+          toast('Gagal hapus: ' + (data.message || 'Error server'), 'error');
         }
       } catch (err) {
-        alert('Koneksi ke server gagal');
+        toast('Koneksi ke server gagal', 'error');
       }
     }
 
@@ -3687,7 +3714,7 @@
       const image = document.getElementById('recipe-modal-img-input').value.trim();
 
       if (!name) {
-        alert('Nama menu wajib diisi');
+        toast('Nama menu wajib diisi', 'warn');
         return;
       }
 
@@ -3698,8 +3725,8 @@
         const existingCount = existing ? existing.length : 0;
         const newCount = (editingRecipeRows || []).length;
         if (existingCount > newCount) {
-          const ok = confirm(
-            `Resep "${name}" akan berkurang dari ${existingCount} baris menjadi ${newCount} baris.\n\n` +
+          const ok = await askConfirm(
+            `Resep "${name}" akan berkurang dari ${existingCount} baris menjadi ${newCount} baris. ` +
             `Ini akan menghapus ${existingCount - newCount} bahan dari BOM. Lanjut simpan?`
           );
           if (!ok) return;
@@ -3730,10 +3757,10 @@
             loadAnalytics();
           }
         } else {
-          alert('Gagal simpan: ' + (data.message || 'Error server'));
+          toast('Gagal simpan: ' + (data.message || 'Error server'), 'error');
         }
       } catch (err) {
-        alert('Koneksi ke server gagal');
+        toast('Koneksi ke server gagal', 'error');
       }
     }
 
@@ -3745,7 +3772,7 @@
       if (!select) return;
 
       if (!allIngredientsList || allIngredientsList.length === 0) {
-        alert('Data bahan baku belum siap.');
+        toast('Data bahan baku belum siap.', 'warn');
         return;
       }
 
@@ -3808,7 +3835,7 @@
       const reportedBy = document.getElementById('waste-reporter-input').value.trim();
 
       if (!ingredientId || isNaN(qty) || qty <= 0) {
-        alert('Masukkan jumlah terbuang yang valid!');
+        toast('Masukkan jumlah terbuang yang valid!', 'warn');
         return;
       }
 
@@ -3823,15 +3850,15 @@
           closeWasteModal();
           await loadIngredients();
         } else {
-          alert('Gagal simpan waste: ' + (data.message || 'Error server'));
+          toast('Gagal simpan waste: ' + (data.message || 'Error server'), 'error');
         }
       } catch (err) {
-        alert('Koneksi ke server gagal');
+        toast('Koneksi ke server gagal', 'error');
       }
     }
 
     async function deleteWasteRecord(id) {
-      if (!confirm('Hapus catatan bahan rusak ini dari rekapan?')) return;
+      if (!await askConfirm('Hapus catatan bahan rusak ini dari rekapan?')) return;
       try {
         const res = await fetch('/api/owner/ingredients/waste/delete', {
           method: 'POST',
@@ -3842,10 +3869,10 @@
         if (data.success) {
           loadIngredients();
         } else {
-          alert('Gagal: ' + (data.message || 'Error server'));
+          toast('Gagal: ' + (data.message || 'Error server'), 'error');
         }
       } catch (err) {
-        alert('Koneksi ke server gagal');
+        toast('Koneksi ke server gagal', 'error');
       }
     }
 
@@ -3990,7 +4017,7 @@
 
     function exportIngredientsCSV() {
       if (!allIngredientsList || allIngredientsList.length === 0) {
-        alert('Data bahan baku belum tersedia untuk diexport.');
+        toast('Data bahan baku belum tersedia untuk diexport.', 'warn');
         return;
       }
       const headers = ['ID Bahan', 'Nama Bahan Baku', 'Kategori', 'Sisa Stok', 'Satuan', 'Batas Min Alert', 'Harga Beli Satuan (Rp)', 'Total Valuasi Aset (Rp)', 'Supplier', 'Terakhir Restock', 'Status'];
@@ -4015,7 +4042,7 @@
 
     function exportWasteCSV() {
       if (!allWasteLogs || allWasteLogs.length === 0) {
-        alert('Belum ada data bahan rusak / waste untuk diexport.');
+        toast('Belum ada data bahan rusak / waste untuk diexport.', 'warn');
         return;
       }
       const headers = ['ID Waste', 'Waktu Kejadian', 'Nama Bahan', 'Jumlah Terbuang', 'Satuan', 'Harga Satuan (Rp)', 'Total Kerugian (Rp)', 'Alasan Terbuang', 'Keterangan', 'Pelapor'];
@@ -4039,7 +4066,7 @@
 
     function exportStockLogsCSV() {
       if (!allStockLogs || allStockLogs.length === 0) {
-        alert('Belum ada data mutasi stok untuk diexport.');
+        toast('Belum ada data mutasi stok untuk diexport.', 'warn');
         return;
       }
       const headers = ['ID Log', 'Waktu Mutasi', 'Nama Bahan', 'Tipe Mutasi', 'Perubahan Qty', 'Sisa Stok Akhir', 'Satuan', 'No Referensi', 'Keterangan'];
@@ -4062,6 +4089,43 @@
 
     // Initialize
     window.addEventListener('DOMContentLoaded', checkOwnerAuth);
+  </script>
+
+  <!-- Toast & konfirmasi in-app (pengganti alert/confirm bawaan browser) -->
+  <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-4 py-2.5 rounded-xl text-white text-sm font-semibold shadow-lg max-w-[90vw] text-center"></div>
+  <div id="confirm-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40" onclick="closeConfirm(false)"></div>
+    <div class="relative bg-white rounded-2xl p-5 w-full max-w-xs shadow-xl">
+      <p id="confirm-msg" class="text-sm text-stone-700 mb-4 leading-relaxed"></p>
+      <div class="flex gap-2 justify-end">
+        <button type="button" onclick="closeConfirm(false)" class="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold transition-colors">Batal</button>
+        <button type="button" onclick="closeConfirm(true)" class="px-4 py-2 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-sm font-bold transition-colors">Ya, Lanjutkan</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    let _toastTimer = null;
+    function toast(msg, type) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.textContent = msg;
+      const color = type === 'error' ? 'bg-rose-600' : type === 'warn' ? 'bg-amber-600' : 'bg-stone-900';
+      t.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-4 py-2.5 rounded-xl text-white text-sm font-semibold shadow-lg max-w-[90vw] text-center ' + color;
+      clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
+    }
+    let _confirmResolve = null;
+    function askConfirm(msg) {
+      return new Promise(resolve => {
+        document.getElementById('confirm-msg').textContent = msg;
+        document.getElementById('confirm-modal').classList.remove('hidden');
+        _confirmResolve = resolve;
+      });
+    }
+    function closeConfirm(yes) {
+      document.getElementById('confirm-modal').classList.add('hidden');
+      if (_confirmResolve) { const r = _confirmResolve; _confirmResolve = null; r(!!yes); }
+    }
   </script>
 </body>
 </html>
