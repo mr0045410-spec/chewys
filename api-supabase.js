@@ -471,7 +471,11 @@
             return sel('orders', 'select=*&id=eq.' + encodeURIComponent(orderId));
           })
           .then(function (rows) {
-            return created({ success: true, order: rowToOrder(rows[0]) });
+            var orderRow = rows[0];
+            // Jurnal otomatis penjualan + HPP (non-fatal: gagal jurnal tidak menggagalkan checkout)
+            return autoJournalSale(orderRow, body.items).then(function () {
+              return created({ success: true, order: rowToOrder(orderRow) });
+            });
           });
       });
     }).catch(serverError);
@@ -697,7 +701,11 @@
           reference: 'Restock Gudang', note: 'Supplier: ' + (body.supplier || r.supplier || '-')
         };
         return ins('stock_logs', [log]).then(function () {
-          return ok({ success: true, ingredient: rowToIngredient(u[0]) });
+          // Jurnal otomatis restock: Dr Persediaan / Cr Kas (non-fatal)
+          var restockCost = Math.round(addQty * (Number(patch.cost_per_unit) || Number(r.cost_per_unit) || 0));
+          return autoJournalRestock(log.id, restockCost, r.name).then(function () {
+            return ok({ success: true, ingredient: rowToIngredient(u[0]) });
+          });
         });
       });
     }).catch(serverError);
@@ -731,16 +739,19 @@
           }]);
         })
         .then(function () {
-          return ok({
-            success: true,
-            message: 'Bahan rusak dicatat. Stok berkurang ' + amount + ' ' + r.unit,
-            waste: {
-              id: wasteEntry.id, timestamp: new Date().toISOString(), ingredientId: r.id,
-              ingredientName: r.name, qty: amount, unit: r.unit,
-              costPerUnit: wasteEntry.cost_per_unit, totalLoss: totalLoss,
-              reason: wasteEntry.reason, note: wasteEntry.note, reportedBy: wasteEntry.reported_by
-            },
-            newStock: nb
+          // Jurnal otomatis waste: Dr Beban Waste & Susut / Cr Persediaan (non-fatal)
+          return autoJournalWaste(wasteEntry.id, totalLoss, r.name).then(function () {
+            return ok({
+              success: true,
+              message: 'Bahan rusak dicatat. Stok berkurang ' + amount + ' ' + r.unit,
+              waste: {
+                id: wasteEntry.id, timestamp: new Date().toISOString(), ingredientId: r.id,
+                ingredientName: r.name, qty: amount, unit: r.unit,
+                costPerUnit: wasteEntry.cost_per_unit, totalLoss: totalLoss,
+                reason: wasteEntry.reason, note: wasteEntry.note, reportedBy: wasteEntry.reported_by
+              },
+              newStock: nb
+            });
           });
         });
     }).catch(serverError);
@@ -983,6 +994,728 @@
     limit = Math.min(200, limit);
     return sel('shifts', 'select=*&order=opened_at.desc&limit=' + limit).then(function (rows) {
       return ok({ success: true, shifts: rows.map(rowToShift) });
+    }).catch(serverError);
+  };
+
+
+  /* ================================================================== */
+  /* Akuntansi & Purchase Order                                           */
+  /* ================================================================== */
+
+  // Probe skema akuntansi (cache), pola sama seperti ordersHasShiftId().
+  var _hasAccounting = null;
+  function accountingReady() {
+    if (_hasAccounting !== null) return Promise.resolve(_hasAccounting);
+    return sel('accounts', 'select=code&limit=1').then(function () {
+      _hasAccounting = true;
+      return true;
+    }).catch(function (e) {
+      _hasAccounting = !/accounts/i.test(String((e && e.message) || ''));
+      return _hasAccounting;
+    });
+  }
+  // Semua route akuntansi/PO lewat sini dulu: skema belum di-apply -> 503 + instruksi.
+  function needAccounting() {
+    return accountingReady().then(function (ready) {
+      if (ready) return null;
+      return json({
+        success: false, needsSchema: true,
+        message: 'Skema akuntansi belum di-apply. Buka Supabase SQL Editor → paste SELURUH supabase-schema.sql → Run, lalu coba lagi.'
+      }, 503);
+    });
+  }
+
+  function rowToAccount(r) {
+    return { code: r.code, name: r.name, type: r.type || 'aset', normal: r.normal || 'debit', active: r.active !== false };
+  }
+  function rowToSupplier(r) {
+    return { id: r.id, name: r.name, phone: r.phone || '', address: r.address || '', active: r.active !== false, createdAt: r.created_at };
+  }
+  function rowToPO(r) {
+    return {
+      id: r.id, supplierId: r.supplier_id, status: r.status || 'draft',
+      subtotal: Number(r.subtotal) || 0, notes: r.notes || '',
+      createdBy: r.created_by || '', createdAt: r.created_at,
+      receivedAt: r.received_at || null, items: [], supplierName: r.supplier_name || ''
+    };
+  }
+  function rowToPOItem(r) {
+    return {
+      id: r.id, poId: r.po_id, ingredientId: r.ingredient_id,
+      ingredientName: r.ingredient_name || '', qty: Number(r.qty) || 0,
+      unit: r.unit || '', unitPrice: Number(r.unit_price) || 0,
+      subtotal: Number(r.subtotal) || 0
+    };
+  }
+  function journalEntryWithLines(e, lines) {
+    return {
+      id: e.id, entryDate: e.entry_date, description: e.description || '',
+      refType: e.ref_type || 'manual', refId: e.ref_id || null,
+      createdBy: e.created_by || '',
+      lines: (lines || []).map(function (l) {
+        return { id: l.id, accountCode: l.account_code, debit: Number(l.debit) || 0, kredit: Number(l.kredit) || 0 };
+      })
+    };
+  }
+
+  // Tulis satu jurnal (entry + lines). ID dibuat di client agar insert bisa paralel.
+  function postJournalEntry(opts) {
+    var entryId = uid('je');
+    var entry = {
+      id: entryId,
+      entry_date: opts.entry_date || new Date().toISOString(),
+      description: String(opts.description || ''),
+      ref_type: opts.ref_type || 'manual',
+      ref_id: opts.ref_id || null,
+      created_by: String(opts.created_by || '')
+    };
+    var lines = (opts.lines || []).map(function (l) {
+      return {
+        id: uid('jl'), entry_id: entryId,
+        account_code: l.account_code,
+        debit: Math.max(0, Math.round(Number(l.debit) || 0)),
+        kredit: Math.max(0, Math.round(Number(l.kredit) || 0))
+      };
+    });
+    return ins('journal_entries', [entry]).then(function () {
+      return ins('journal_lines', lines);
+    }).then(function () { return entryId; });
+  }
+
+  // Bungkus non-fatal untuk hook otomatis: gagal jurnal tidak menggagalkan transaksi utama.
+  function tryJournal(opts) {
+    return accountingReady().then(function (ready) {
+      if (!ready) return null;
+      return postJournalEntry(opts);
+    }).catch(function (e) {
+      console.error('[api-supabase] jurnal otomatis gagal:', e && e.message);
+      return null;
+    });
+  }
+
+  // Validasi jurnal manual: akun ada & aktif, debit == kredit, min 2 baris.
+  function validateJournalLines(lines, accounts) {
+    if (!Array.isArray(lines) || lines.length < 2) {
+      return { ok: false, message: 'Jurnal manual minimal 2 baris' };
+    }
+    var accMap = {};
+    accounts.forEach(function (a) { accMap[a.code] = a; });
+    var td = 0, tk = 0;
+    for (var i = 0; i < lines.length; i++) {
+      var l = lines[i] || {};
+      var acc = accMap[l.account_code];
+      if (!acc) return { ok: false, message: 'Akun tidak dikenal: ' + (l.account_code || '(kosong)') };
+      if (acc.active === false) return { ok: false, message: 'Akun nonaktif: ' + l.account_code };
+      var d = Math.round(Number(l.debit) || 0), k = Math.round(Number(l.kredit) || 0);
+      if (d < 0 || k < 0) return { ok: false, message: 'Nominal baris ' + (i + 1) + ' tidak boleh negatif' };
+      if (d > 0 && k > 0) return { ok: false, message: 'Baris ' + (i + 1) + ': pilih debit ATAU kredit, tidak boleh dua-duanya' };
+      if (d === 0 && k === 0) return { ok: false, message: 'Baris ' + (i + 1) + ' nominalnya nol' };
+      td += d; tk += k;
+    }
+    if (td === 0) return { ok: false, message: 'Total jurnal tidak boleh nol' };
+    if (td !== tk) return { ok: false, message: 'Tidak balance: total debit Rp ' + td.toLocaleString('id-ID') + ' \u2260 total kredit Rp ' + tk.toLocaleString('id-ID') };
+    return { ok: true };
+  }
+
+  // Ambil journal_lines untuk sekumpulan entry id (dipecah per 100 agar in-list tidak kepanjangan).
+  function fetchJournalLinesForEntries(entryIds) {
+    if (!entryIds.length) return Promise.resolve([]);
+    var batches = [];
+    for (var i = 0; i < entryIds.length; i += 100) batches.push(entryIds.slice(i, i + 100));
+    return Promise.all(batches.map(function (b) {
+      return sel('journal_lines', 'select=*&entry_id=in.(' + b.map(encodeURIComponent).join(',') + ')&limit=5000');
+    })).then(function (groups) {
+      var all = [];
+      groups.forEach(function (g) { all = all.concat(g); });
+      return all;
+    });
+  }
+
+  // --- Jurnal otomatis: penjualan (2 jurnal: kas/piutang vs pendapatan, HPP vs persediaan) ---
+  function autoJournalSale(orderRow, items) {
+    return accountingReady().then(function (ready) {
+      if (!ready) return null;
+      var total = Math.round(Number(orderRow.total) || 0);
+      var pm = String(orderRow.payment_method || 'cash').toLowerCase();
+      var cashCode = pm === 'cash' ? '1100' : '1120'; // tunai -> Kas, QRIS/EDC -> Kas Bank
+      var entryDate = orderRow.created_at || new Date().toISOString();
+      var ids = (items || []).map(function (i) { return i.id; }).filter(Boolean);
+      var costLookup = ids.length
+        ? sel('menu_items', 'select=id,cost_price&id=in.(' + ids.map(encodeURIComponent).join(',') + ')')
+        : Promise.resolve([]);
+      return costLookup.then(function (menuRows) {
+        var costMap = {};
+        menuRows.forEach(function (m) { costMap[m.id] = Number(m.cost_price) || 0; });
+        var hpp = 0;
+        (items || []).forEach(function (it) { hpp += (Number(it.qty) || 1) * (costMap[it.id] || 0); });
+        hpp = Math.round(hpp);
+        return postJournalEntry({
+          entry_date: entryDate, description: 'Penjualan ' + orderRow.id,
+          ref_type: 'sale', ref_id: orderRow.id,
+          lines: [
+            { account_code: cashCode, debit: total, kredit: 0 },
+            { account_code: '4100', debit: 0, kredit: total }
+          ]
+        }).then(function () {
+          return postJournalEntry({
+            entry_date: entryDate, description: 'HPP ' + orderRow.id,
+            ref_type: 'sale', ref_id: orderRow.id + ':hpp',
+            lines: [
+              { account_code: '5100', debit: hpp, kredit: 0 },
+              { account_code: '1200', debit: 0, kredit: hpp }
+            ]
+          });
+        });
+      });
+    }).catch(function (e) {
+      console.error('[api-supabase] jurnal otomatis sale gagal:', e && e.message);
+      return null;
+    });
+  }
+
+  // --- Jurnal otomatis: waste -> Dr Beban Waste / Cr Persediaan ---
+  function autoJournalWaste(wasteId, totalLoss, ingName) {
+    var amt = Math.round(Number(totalLoss) || 0);
+    return tryJournal({
+      description: 'Waste ' + (ingName || ''),
+      ref_type: 'waste', ref_id: wasteId,
+      lines: [
+        { account_code: '5400', debit: amt, kredit: 0 },
+        { account_code: '1200', debit: 0, kredit: amt }
+      ]
+    });
+  }
+
+  // --- Jurnal otomatis: restock -> Dr Persediaan / Cr Kas ---
+  function autoJournalRestock(logId, amount, ingName) {
+    var amt = Math.round(Number(amount) || 0);
+    return tryJournal({
+      description: 'Restock ' + (ingName || ''),
+      ref_type: 'restock', ref_id: logId,
+      lines: [
+        { account_code: '1200', debit: amt, kredit: 0 },
+        { account_code: '1100', debit: 0, kredit: amt }
+      ]
+    });
+  }
+
+  // 27. GET /api/owner/accounts — daftar CoA
+  routes['GET /api/owner/accounts'] = function () {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      return sel('accounts', 'select=*&order=code.asc').then(function (rows) {
+        return ok({ success: true, accounts: rows.map(rowToAccount) });
+      });
+    }).catch(serverError);
+  };
+
+  // 28. POST /api/owner/accounts/upsert — tambah / edit akun. body: {code, name, type, normal}
+  routes['POST /api/owner/accounts/upsert'] = function (body) {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      var code = String(body.code || '').trim();
+      var name = String(body.name || '').trim();
+      var type = String(body.type || '').toLowerCase();
+      var normal = String(body.normal || '').toLowerCase();
+      var TYPES = ['aset', 'kewajiban', 'ekuitas', 'pendapatan', 'beban'];
+      if (!/^[0-9]{2,6}$/.test(code)) return bad({ success: false, message: 'Kode akun wajib 2-6 digit angka (mis. 1100)' });
+      if (!name) return bad({ success: false, message: 'Nama akun wajib diisi' });
+      if (TYPES.indexOf(type) < 0) return bad({ success: false, message: 'Tipe akun tidak valid: ' + (body.type || '') });
+      if (normal !== 'debit' && normal !== 'kredit') return bad({ success: false, message: 'Saldo normal harus debit atau kredit' });
+      return sel('accounts', 'select=code&code=eq.' + encodeURIComponent(code)).then(function (ex) {
+        var data = { name: name, type: type, normal: normal };
+        var op = ex.length
+          ? upd('accounts', 'code=eq.' + encodeURIComponent(code), data)
+          : ins('accounts', [Object.assign({ code: code, active: true }, data)]);
+        return op.then(function (rows) {
+          return ok({ success: true, account: rowToAccount(rows[0]) });
+        });
+      });
+    }).catch(serverError);
+  };
+
+  // 29. POST /api/owner/accounts/set-active — {code, active}
+  routes['POST /api/owner/accounts/set-active'] = function (body) {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      if (!body.code) return bad({ success: false, message: 'Kode akun wajib diisi' });
+      return upd('accounts', 'code=eq.' + encodeURIComponent(body.code), { active: body.active !== false })
+        .then(function (u) {
+          if (!u.length) return notFound({ success: false, message: 'Akun tidak ditemukan' });
+          return ok({ success: true, account: rowToAccount(u[0]) });
+        });
+    }).catch(serverError);
+  };
+
+  // 30. POST /api/owner/journal/manual — {entry_date?, description, lines:[{account_code,debit,kredit}], created_by?}
+  routes['POST /api/owner/journal/manual'] = function (body) {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      var desc = String(body.description || '').trim();
+      if (!desc) return bad({ success: false, message: 'Keterangan jurnal wajib diisi' });
+      return sel('accounts', 'select=*').then(function (accRows) {
+        var v = validateJournalLines(body.lines, accRows.map(rowToAccount));
+        if (!v.ok) return bad({ success: false, message: v.message });
+        return postJournalEntry({
+          entry_date: body.entry_date || new Date().toISOString(),
+          description: desc, ref_type: 'manual', ref_id: null,
+          created_by: String(body.created_by || ''),
+          lines: body.lines
+        }).then(function (entryId) {
+          return sel('journal_entries', 'select=*&id=eq.' + encodeURIComponent(entryId)).then(function (er) {
+            return sel('journal_lines', 'select=*&entry_id=eq.' + encodeURIComponent(entryId)).then(function (lr) {
+              return created({ success: true, entry: journalEntryWithLines(er[0], lr) });
+            });
+          });
+        });
+      });
+    }).catch(serverError);
+  };
+
+  // 31. GET /api/owner/journal — ?from=YYYY-MM-DD&to=YYYY-MM-DD&limit=
+  routes['GET /api/owner/journal'] = function (body, query) {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      query = query || {};
+      var limit = Math.min(500, Math.max(1, parseInt(query.limit || '100', 10) || 100));
+      var q = 'select=*&order=entry_date.desc&limit=' + limit;
+      if (query.from) q += '&entry_date=gte.' + encodeURIComponent(query.from + 'T00:00:00+07:00');
+      if (query.to) q += '&entry_date=lte.' + encodeURIComponent(query.to + 'T23:59:59+07:00');
+      return sel('journal_entries', q).then(function (entries) {
+        var ids = entries.map(function (e) { return e.id; });
+        if (!ids.length) return ok({ success: true, entries: [] });
+        return fetchJournalLinesForEntries(ids).then(function (lines) {
+          var lineMap = {};
+          lines.forEach(function (l) { (lineMap[l.entry_id] = lineMap[l.entry_id] || []).push(l); });
+          return ok({ success: true, entries: entries.map(function (e) { return journalEntryWithLines(e, lineMap[e.id] || []); }) });
+        });
+      });
+    }).catch(serverError);
+  };
+
+  // 32. GET /api/owner/reports/profit-loss — ?from&to (YYYY-MM-DD)
+  //     Dihitung dari jurnal: pendapatan (4100 dkk), beban (5100=HPP, 5200-5400).
+  routes['GET /api/owner/reports/profit-loss'] = function (body, query) {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      query = query || {};
+      var q = 'select=id&order=entry_date.desc&limit=10000';
+      if (query.from) q += '&entry_date=gte.' + encodeURIComponent(query.from + 'T00:00:00+07:00');
+      if (query.to) q += '&entry_date=lte.' + encodeURIComponent(query.to + 'T23:59:59+07:00');
+      return sel('journal_entries', q).then(function (entries) {
+        var ids = entries.map(function (e) { return e.id; });
+        return sel('accounts', 'select=*').then(function (accRows) {
+          var accMap = {};
+          accRows.forEach(function (a) { accMap[a.code] = rowToAccount(a); });
+          var aggregate = function (lines) {
+            var revenue = 0, cogs = 0, expenses = {};
+            lines.forEach(function (l) {
+              var acc = accMap[l.account_code];
+              if (!acc) return;
+              var d = Number(l.debit) || 0, k = Number(l.kredit) || 0;
+              if (acc.type === 'pendapatan') revenue += (k - d);
+              else if (acc.type === 'beban') {
+                var amt = d - k;
+                if (l.account_code === '5100') cogs += amt;
+                else {
+                  expenses[l.account_code] = expenses[l.account_code] || { name: acc.name, amount: 0 };
+                  expenses[l.account_code].amount += amt;
+                }
+              }
+            });
+            var totalExpenses = Object.keys(expenses).reduce(function (s, c) { return s + expenses[c].amount; }, 0);
+            var grossProfit = revenue - cogs;
+            return {
+              revenue: revenue, cogs: cogs, grossProfit: grossProfit,
+              expenses: expenses, totalExpenses: totalExpenses,
+              netProfit: grossProfit - totalExpenses
+            };
+          };
+          if (!ids.length) {
+            return ok({ success: true, from: query.from || null, to: query.to || null, profitLoss: aggregate([]) });
+          }
+          return fetchJournalLinesForEntries(ids).then(function (lines) {
+            return ok({ success: true, from: query.from || null, to: query.to || null, profitLoss: aggregate(lines) });
+          });
+        });
+      });
+    }).catch(serverError);
+  };
+
+  // 33. GET /api/owner/reports/balance-sheet — ?as_of=YYYY-MM-DD
+  //     Aset = akun tipe aset, Kewajiban, Ekuitas + Laba ditahan (dari P&L kumulatif).
+  routes['GET /api/owner/reports/balance-sheet'] = function (body, query) {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      query = query || {};
+      var asOf = query.as_of || getJakartaDateStr();
+      var q = 'select=id&entry_date=lte.' + encodeURIComponent(asOf + 'T23:59:59+07:00') + '&order=entry_date.asc&limit=20000';
+      return sel('journal_entries', q).then(function (entries) {
+        var ids = entries.map(function (e) { return e.id; });
+        return sel('accounts', 'select=*&order=code.asc').then(function (accRows) {
+          var accounts = accRows.map(rowToAccount);
+          var accMap = {};
+          accounts.forEach(function (a) { accMap[a.code] = a; });
+          var build = function (lines) {
+            var bal = {};
+            var totalD = 0, totalK = 0, revenue = 0, totalBeban = 0;
+            lines.forEach(function (l) {
+              var d = Number(l.debit) || 0, k = Number(l.kredit) || 0;
+              totalD += d; totalK += k;
+              var acc = accMap[l.account_code];
+              if (!acc) return;
+              var net = acc.normal === 'debit' ? (d - k) : (k - d);
+              bal[l.account_code] = (bal[l.account_code] || 0) + net;
+              if (acc.type === 'pendapatan') revenue += (k - d);
+              else if (acc.type === 'beban') totalBeban += (d - k);
+            });
+            var retained = Math.round(revenue - totalBeban);
+            var assets = [], liabilities = [], equity = [];
+            accounts.forEach(function (a) {
+              var row = { code: a.code, name: a.name, balance: Math.round(bal[a.code] || 0) };
+              if (a.type === 'aset') assets.push(row);
+              else if (a.type === 'kewajiban') liabilities.push(row);
+              else if (a.type === 'ekuitas') equity.push(row);
+            });
+            var sum = function (arr) { return arr.reduce(function (s, r) { return s + r.balance; }, 0); };
+            var tA = sum(assets), tL = sum(liabilities), tE = sum(equity);
+            return ok({
+              success: true, asOf: asOf,
+              assets: { accounts: assets, total: tA },
+              liabilities: { accounts: liabilities, total: tL },
+              equity: { accounts: equity, retainedEarnings: retained, total: tE + retained },
+              balanced: totalD === totalK,
+              totalDebit: totalD, totalKredit: totalK,
+              check: tA - (tL + tE + retained) // harus 0 bila balance
+            });
+          };
+          if (!ids.length) return build([]);
+          return fetchJournalLinesForEntries(ids).then(build);
+        });
+      });
+    }).catch(serverError);
+  };
+
+  // 34. POST /api/owner/journal/backfill — buat jurnal utk order/waste/restock lama yg belum punya.
+  //     Idempotent: ref_type+ref_id yg sudah ada dilewati.
+  routes['POST /api/owner/journal/backfill'] = function (body) {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      return sel('journal_entries', 'select=ref_type,ref_id&limit=20000').then(function (existing) {
+        var seen = {};
+        existing.forEach(function (e) { if (e.ref_id) seen[e.ref_type + '|' + e.ref_id] = true; });
+        var created = 0;
+        var jobs = []; // fungsi lazy -> dijalankan sekuensial
+        var stepOrders = sel('orders', 'select=id,total,payment_method,created_at,items&limit=2000').then(function (orders) {
+          var missing = orders.filter(function (o) { return !seen['sale|' + o.id]; });
+          if (!missing.length) return null;
+          var menuIds = {};
+          missing.forEach(function (o) { (o.items || []).forEach(function (it) { if (it.id) menuIds[it.id] = true; }); });
+          var ids = Object.keys(menuIds);
+          var costP = ids.length
+            ? sel('menu_items', 'select=id,cost_price&id=in.(' + ids.map(encodeURIComponent).join(',') + ')')
+            : Promise.resolve([]);
+          return costP.then(function (menuRows) {
+            var costMap = {};
+            menuRows.forEach(function (m) { costMap[m.id] = Number(m.cost_price) || 0; });
+            missing.forEach(function (o) {
+              var total = Math.round(Number(o.total) || 0);
+              var pm = String(o.payment_method || 'cash').toLowerCase();
+              var cashCode = pm === 'cash' ? '1100' : '1120';
+              var hpp = 0;
+              (o.items || []).forEach(function (it) { hpp += (Number(it.qty) || 1) * (costMap[it.id] || 0); });
+              hpp = Math.round(hpp);
+              var ed = o.created_at || new Date().toISOString();
+              jobs.push(function () {
+                created += 2;
+                return postJournalEntry({
+                  entry_date: ed, description: 'Penjualan ' + o.id + ' (backfill)',
+                  ref_type: 'sale', ref_id: o.id,
+                  lines: [{ account_code: cashCode, debit: total, kredit: 0 }, { account_code: '4100', debit: 0, kredit: total }]
+                }).then(function () {
+                  return postJournalEntry({
+                    entry_date: ed, description: 'HPP ' + o.id + ' (backfill)',
+                    ref_type: 'sale', ref_id: o.id + ':hpp',
+                    lines: [{ account_code: '5100', debit: hpp, kredit: 0 }, { account_code: '1200', debit: 0, kredit: hpp }]
+                  });
+                });
+              });
+            });
+          });
+        });
+        var stepWaste = stepOrders.then(function () {
+          return sel('waste_logs', 'select=id,ingredient_name,total_loss,created_at&limit=2000');
+        }).then(function (wl) {
+          wl.filter(function (w) { return !seen['waste|' + w.id]; }).forEach(function (w) {
+            var amt = Math.round(Number(w.total_loss) || 0);
+            jobs.push(function () {
+              created++;
+              return postJournalEntry({
+                entry_date: w.created_at || new Date().toISOString(),
+                description: 'Waste ' + (w.ingredient_name || '') + ' (backfill)',
+                ref_type: 'waste', ref_id: w.id,
+                lines: [{ account_code: '5400', debit: amt, kredit: 0 }, { account_code: '1200', debit: 0, kredit: amt }]
+              });
+            });
+          });
+        });
+        var stepRestock = stepWaste.then(function () {
+          return sel('stock_logs', 'select=id,ingredient_id,ingredient_name,change_qty,created_at&type=eq.IN_RESTOCK&limit=2000');
+        }).then(function (logs) {
+          var missing = logs.filter(function (l) { return !seen['restock|' + l.id]; });
+          if (!missing.length) return null;
+          var ingIds = {};
+          missing.forEach(function (l) { if (l.ingredient_id) ingIds[l.ingredient_id] = true; });
+          var keys = Object.keys(ingIds);
+          var costP = keys.length
+            ? sel('ingredients', 'select=id,cost_per_unit&id=in.(' + keys.map(encodeURIComponent).join(',') + ')')
+            : Promise.resolve([]);
+          return costP.then(function (ingRows) {
+            var costMap = {};
+            ingRows.forEach(function (g) { costMap[g.id] = Number(g.cost_per_unit) || 0; });
+            missing.forEach(function (l) {
+              var amt = Math.round((Number(l.change_qty) || 0) * (costMap[l.ingredient_id] || 0));
+              jobs.push(function () {
+                created++;
+                return postJournalEntry({
+                  entry_date: l.created_at || new Date().toISOString(),
+                  description: 'Restock ' + (l.ingredient_name || '') + ' (backfill, estimasi)',
+                  ref_type: 'restock', ref_id: l.id,
+                  lines: [{ account_code: '1200', debit: amt, kredit: 0 }, { account_code: '1100', debit: 0, kredit: amt }]
+                });
+              });
+            });
+          });
+        });
+        return stepRestock.then(function () {
+          return jobs.reduce(function (p, fn) { return p.then(fn); }, Promise.resolve());
+        }).then(function () {
+          return ok({ success: true, created: created, message: created ? created + ' jurnal backfill dibuat' : 'Semua transaksi sudah punya jurnal — tidak ada yang dibuat' });
+        });
+      });
+    }).catch(serverError);
+  };
+
+  // 35. GET /api/owner/suppliers — daftar supplier
+  routes['GET /api/owner/suppliers'] = function () {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      return sel('suppliers', 'select=*&order=name.asc').then(function (rows) {
+        return ok({ success: true, suppliers: rows.map(rowToSupplier) });
+      });
+    }).catch(serverError);
+  };
+
+  // 36. POST /api/owner/suppliers/upsert — {id?, name, phone?, address?}
+  routes['POST /api/owner/suppliers/upsert'] = function (body) {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      var name = String(body.name || '').trim();
+      if (!name) return bad({ success: false, message: 'Nama supplier wajib diisi' });
+      var data = { name: name, phone: String(body.phone || ''), address: String(body.address || '') };
+      if (body.id) {
+        return upd('suppliers', 'id=eq.' + encodeURIComponent(body.id), data).then(function (u) {
+          if (!u.length) return notFound({ success: false, message: 'Supplier tidak ditemukan' });
+          return ok({ success: true, supplier: rowToSupplier(u[0]) });
+        });
+      }
+      return ins('suppliers', [Object.assign({ id: uid('sup'), active: true }, data)]).then(function (rows) {
+        return created({ success: true, supplier: rowToSupplier(rows[0]) });
+      });
+    }).catch(serverError);
+  };
+
+  // 37. POST /api/owner/suppliers/set-active — {id, active}
+  routes['POST /api/owner/suppliers/set-active'] = function (body) {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      if (!body.id) return bad({ success: false, message: 'ID supplier wajib diisi' });
+      return upd('suppliers', 'id=eq.' + encodeURIComponent(body.id), { active: body.active !== false })
+        .then(function (u) {
+          if (!u.length) return notFound({ success: false, message: 'Supplier tidak ditemukan' });
+          return ok({ success: true, supplier: rowToSupplier(u[0]) });
+        });
+    }).catch(serverError);
+  };
+
+  // 38. GET /api/owner/purchase-orders — ?status&limit, atau ?id= untuk detail + items
+  routes['GET /api/owner/purchase-orders'] = function (body, query) {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      query = query || {};
+      if (query.id) {
+        return sel('purchase_orders', 'select=*&id=eq.' + encodeURIComponent(query.id)).then(function (pr) {
+          if (!pr.length) return notFound({ success: false, message: 'PO tidak ditemukan' });
+          var po = rowToPO(pr[0]);
+          return sel('purchase_order_items', 'select=*&po_id=eq.' + encodeURIComponent(po.id)).then(function (ir) {
+            po.items = ir.map(rowToPOItem);
+            return sel('suppliers', 'select=id,name&id=eq.' + encodeURIComponent(po.supplierId));
+          }).then(function (sr) {
+            po.supplierName = sr.length ? sr[0].name : '';
+            return ok({ success: true, po: po });
+          });
+        });
+      }
+      var q = 'select=*&order=created_at.desc&limit=' + Math.min(200, Math.max(1, parseInt(query.limit || '50', 10) || 50));
+      if (query.status) q += '&status=eq.' + encodeURIComponent(query.status);
+      return sel('purchase_orders', q).then(function (rows) {
+        return sel('suppliers', 'select=id,name').then(function (sr) {
+          var nameMap = {};
+          sr.forEach(function (s) { nameMap[s.id] = s.name; });
+          var pos = rows.map(rowToPO);
+          pos.forEach(function (p) { p.supplierName = nameMap[p.supplierId] || ''; });
+          return ok({ success: true, purchaseOrders: pos });
+        });
+      });
+    }).catch(serverError);
+  };
+
+  // 39. POST /api/owner/purchase-orders/create — {supplier_id, items:[{ingredient_id, qty, unit_price}], notes?, created_by?}
+  //     Nomor PO atomic via next_po_seq (counter terpisah, tidak pakai order_counters).
+  routes['POST /api/owner/purchase-orders/create'] = function (body) {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      if (!body.supplier_id) return bad({ success: false, message: 'Supplier wajib dipilih' });
+      var items = Array.isArray(body.items) ? body.items : [];
+      if (!items.length) return bad({ success: false, message: 'PO minimal 1 item' });
+      return sel('suppliers', 'select=id,name,active&id=eq.' + encodeURIComponent(body.supplier_id)).then(function (sr) {
+        if (!sr.length) return notFound({ success: false, message: 'Supplier tidak ditemukan' });
+        if (!sr[0].active) return bad({ success: false, message: 'Supplier nonaktif' });
+        var supplierName = sr[0].name;
+        var ingIds = items.map(function (it) { return it && it.ingredient_id; }).filter(Boolean);
+        if (!ingIds.length) return bad({ success: false, message: 'Item PO tidak valid' });
+        return sel('ingredients', 'select=id,name,unit&id=in.(' + ingIds.map(encodeURIComponent).join(',') + ')').then(function (ingRows) {
+          var ingMap = {};
+          ingRows.forEach(function (g) { ingMap[g.id] = g; });
+          var poItems = [], subtotal = 0;
+          for (var i = 0; i < items.length; i++) {
+            var it = items[i] || {};
+            var ing = ingMap[it.ingredient_id];
+            if (!ing) return bad({ success: false, message: 'Bahan tidak dikenal: ' + (it.ingredient_id || '') });
+            var qty = Number(it.qty) || 0;
+            var price = Math.round(Number(it.unit_price) || 0);
+            if (!(qty > 0)) return bad({ success: false, message: 'Qty "' + ing.name + '" harus lebih dari 0' });
+            if (price < 0) return bad({ success: false, message: 'Harga "' + ing.name + '" tidak valid' });
+            var st = Math.round(qty * price);
+            subtotal += st;
+            poItems.push({
+              id: uid('poi'), ingredient_id: ing.id, ingredient_name: ing.name,
+              qty: qty, unit: ing.unit, unit_price: price, subtotal: st
+            });
+          }
+          var dateKey = getJakartaDateKey();
+          return rpc('next_po_seq', { p_date_key: dateKey }).then(function (seqRaw) {
+            var seq = Array.isArray(seqRaw) ? seqRaw[0] : seqRaw;
+            var poId = 'PO-' + dateKey + '-' + String(seq).padStart(4, '0');
+            poItems.forEach(function (pi) { pi.po_id = poId; });
+            var poRow = {
+              id: poId, supplier_id: body.supplier_id, status: 'draft',
+              subtotal: subtotal, notes: String(body.notes || ''), created_by: String(body.created_by || '')
+            };
+            return ins('purchase_orders', [poRow]).then(function () {
+              return ins('purchase_order_items', poItems);
+            }).then(function () {
+              var out = rowToPO(poRow);
+              out.items = poItems.map(rowToPOItem);
+              out.supplierName = supplierName;
+              return created({ success: true, po: out });
+            });
+          });
+        });
+      });
+    }).catch(serverError);
+  };
+
+  // 40. POST /api/owner/purchase-orders/send — {id}: draft -> sent
+  routes['POST /api/owner/purchase-orders/send'] = function (body) {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      if (!body.id) return bad({ success: false, message: 'ID PO wajib diisi' });
+      return sel('purchase_orders', 'select=*&id=eq.' + encodeURIComponent(body.id)).then(function (pr) {
+        if (!pr.length) return notFound({ success: false, message: 'PO tidak ditemukan' });
+        if (pr[0].status !== 'draft') return bad({ success: false, message: 'Hanya PO draft yang bisa dikirim' });
+        return upd('purchase_orders', 'id=eq.' + encodeURIComponent(body.id), { status: 'sent' }).then(function (u) {
+          return ok({ success: true, po: rowToPO(u[0]) });
+        });
+      });
+    }).catch(serverError);
+  };
+
+  // 41. POST /api/owner/purchase-orders/receive — {id, paid: 'cash'|'credit'}
+  //     sent -> received: tambah stok bahan, stock_logs IN_PURCHASE,
+  //     jurnal Dr 1200 / Cr 1100 (tunai) atau Cr 2100 (kredit).
+  routes['POST /api/owner/purchase-orders/receive'] = function (body) {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      if (!body.id) return bad({ success: false, message: 'ID PO wajib diisi' });
+      var paid = body.paid === 'credit' ? 'credit' : 'cash';
+      return sel('purchase_orders', 'select=*&id=eq.' + encodeURIComponent(body.id)).then(function (pr) {
+        if (!pr.length) return notFound({ success: false, message: 'PO tidak ditemukan' });
+        var po = pr[0];
+        if (po.status !== 'sent') return bad({ success: false, message: 'Hanya PO berstatus "dikirim" yang bisa diterima' });
+        return sel('purchase_order_items', 'select=*&po_id=eq.' + encodeURIComponent(po.id)).then(function (items) {
+          if (!items.length) return bad({ success: false, message: 'PO tidak punya item' });
+          var ingIds = items.map(function (it) { return it.ingredient_id; });
+          return sel('ingredients', 'select=*&id=in.(' + ingIds.map(encodeURIComponent).join(',') + ')').then(function (ingRows) {
+            var ingMap = {};
+            ingRows.forEach(function (g) { ingMap[g.id] = g; });
+            var ops = [], logs = [];
+            var nowIso = new Date().toISOString();
+            var dt = formatJakartaDateTime();
+            items.forEach(function (it) {
+              var ing = ingMap[it.ingredient_id];
+              if (!ing) return;
+              var nb = Math.round(((Number(ing.current_stock) || 0) + (Number(it.qty) || 0)) * 1000) / 1000;
+              ing.current_stock = nb;
+              var patch = { current_stock: nb, last_restock: dt.date + ' ' + dt.time };
+              if (Number(it.unit_price) > 0) patch.cost_per_unit = Number(it.unit_price);
+              ops.push(upd('ingredients', 'id=eq.' + encodeURIComponent(ing.id), patch));
+              logs.push({
+                id: uid('log'), ingredient_id: ing.id, ingredient_name: ing.name,
+                type: 'IN_PURCHASE', change_qty: Number(it.qty) || 0, balance_qty: nb,
+                unit: ing.unit, reference: 'PO ' + po.id,
+                note: 'Terima PO ' + po.id + ' @Rp ' + (Number(it.unit_price) || 0).toLocaleString('id-ID')
+              });
+            });
+            var total = Number(po.subtotal) || 0;
+            return Promise.all(ops).then(function () {
+              return logs.length ? ins('stock_logs', logs) : null;
+            }).then(function () {
+              return tryJournal({
+                description: 'Terima PO ' + po.id + (paid === 'credit' ? ' (kredit)' : ' (tunai)'),
+                ref_type: 'po_receive', ref_id: po.id,
+                lines: [
+                  { account_code: '1200', debit: total, kredit: 0 },
+                  { account_code: paid === 'credit' ? '2100' : '1100', debit: 0, kredit: total }
+                ]
+              });
+            }).then(function () {
+              return upd('purchase_orders', 'id=eq.' + encodeURIComponent(po.id), { status: 'received', received_at: nowIso });
+            }).then(function (u) {
+              var out = rowToPO(u[0]);
+              out.items = items.map(rowToPOItem);
+              return ok({ success: true, po: out });
+            });
+          });
+        });
+      });
+    }).catch(serverError);
+  };
+
+  // 42. POST /api/owner/purchase-orders/cancel — {id}: hanya draft/sent
+  routes['POST /api/owner/purchase-orders/cancel'] = function (body) {
+    return needAccounting().then(function (blocked) {
+      if (blocked) return blocked;
+      if (!body.id) return bad({ success: false, message: 'ID PO wajib diisi' });
+      return sel('purchase_orders', 'select=status&id=eq.' + encodeURIComponent(body.id)).then(function (pr) {
+        if (!pr.length) return notFound({ success: false, message: 'PO tidak ditemukan' });
+        if (pr[0].status !== 'draft' && pr[0].status !== 'sent') {
+          return bad({ success: false, message: 'PO yang sudah diterima tidak bisa dibatalkan' });
+        }
+        return upd('purchase_orders', 'id=eq.' + encodeURIComponent(body.id), { status: 'cancelled' }).then(function (u) {
+          return ok({ success: true, po: rowToPO(u[0]) });
+        });
+      });
     }).catch(serverError);
   };
 

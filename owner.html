@@ -188,6 +188,14 @@
           <i data-lucide="users" class="w-4 h-4 text-bakery-orange"></i>
           <span>Pegawai & Shift</span>
         </button>
+        <button onclick="switchOwnerView('accounting')" id="view-tab-accounting" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all">
+          <i data-lucide="calculator" class="w-4 h-4 text-bakery-orange"></i>
+          <span>Akuntansi</span>
+        </button>
+        <button onclick="switchOwnerView('po')" id="view-tab-po" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all">
+          <i data-lucide="shopping-cart" class="w-4 h-4 text-bakery-orange"></i>
+          <span>Purchase Order</span>
+        </button>
       </div>
 
       <div id="inventory-top-actions" class="hidden flex flex-wrap items-center gap-2">
@@ -743,7 +751,367 @@
     </div>
     <!-- END VIEW 3: STAFF -->
 
+<!-- VIEW 4: AKUNTANSI -->
+    <div id="owner-view-accounting" class="hidden space-y-6">
+
+      <!-- Section: Chart of Accounts -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+              <i data-lucide="book-open" class="w-5 h-5 text-bakery-orange"></i>
+              Chart of Accounts (Daftar Akun)
+            </h3>
+            <p class="text-[11px] text-stone-400 mt-0.5">Kode akun dipakai di setiap jurnal. Jangan nonaktifkan akun yang masih dipakai (1100, 1200, 4100, 5100).</p>
+          </div>
+          <button onclick="openAccountModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-xs font-bold shadow-xs transition-colors">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>Tambah Akun</span>
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-left text-stone-400 uppercase text-[10px] tracking-wider border-b border-stone-100">
+                <th class="py-2 pr-3 font-bold">Kode</th>
+                <th class="py-2 pr-3 font-bold">Nama Akun</th>
+                <th class="py-2 pr-3 font-bold">Tipe</th>
+                <th class="py-2 pr-3 font-bold">Saldo Normal</th>
+                <th class="py-2 pr-3 font-bold">Status</th>
+                <th class="py-2 pr-3 font-bold text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="acct-account-list">
+              <tr><td colspan="6" class="py-6 text-center text-stone-400">Memuat...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section: Jurnal Umum -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+              <i data-lucide="notebook-pen" class="w-5 h-5 text-bakery-orange"></i>
+              Jurnal Umum
+            </h3>
+            <p class="text-[11px] text-stone-400 mt-0.5">Penjualan, HPP, waste, restock, dan terima PO tercatat otomatis di sini.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <input type="date" id="acct-journal-from" class="py-2 px-3 rounded-xl border border-stone-300 text-xs font-medium focus:border-bakery-orange focus:outline-none">
+            <span class="text-xs text-stone-400">s/d</span>
+            <input type="date" id="acct-journal-to" class="py-2 px-3 rounded-xl border border-stone-300 text-xs font-medium focus:border-bakery-orange focus:outline-none">
+            <button onclick="loadJournal()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition-colors">
+              <i data-lucide="search" class="w-3.5 h-3.5"></i><span>Tampilkan</span>
+            </button>
+            <button onclick="openManualJournalModal()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-xs font-bold shadow-xs transition-colors">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i><span>Jurnal Manual</span>
+            </button>
+            <button onclick="runBackfill()" title="Buat jurnal untuk transaksi lama yang belum punya jurnal" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold border border-stone-300 transition-colors">
+              <i data-lucide="history" class="w-3.5 h-3.5 text-stone-500"></i><span>Backfill</span>
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-left text-stone-400 uppercase text-[10px] tracking-wider border-b border-stone-100">
+                <th class="py-2 pr-3 font-bold">Tanggal</th>
+                <th class="py-2 pr-3 font-bold">Keterangan</th>
+                <th class="py-2 pr-3 font-bold">Akun</th>
+                <th class="py-2 pr-3 font-bold text-right">Debit</th>
+                <th class="py-2 pr-3 font-bold text-right">Kredit</th>
+              </tr>
+            </thead>
+            <tbody id="acct-journal-list">
+              <tr><td colspan="5" class="py-6 text-center text-stone-400">Memuat...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section: Laba Rugi -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+              <i data-lucide="trending-up" class="w-5 h-5 text-bakery-orange"></i>
+              Laporan Laba Rugi
+            </h3>
+            <p class="text-[11px] text-stone-400 mt-0.5">Dihitung otomatis dari jurnal pada periode yang dipilih.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="date" id="acct-pl-from" class="py-2 px-3 rounded-xl border border-stone-300 text-xs font-medium focus:border-bakery-orange focus:outline-none">
+            <span class="text-xs text-stone-400">s/d</span>
+            <input type="date" id="acct-pl-to" class="py-2 px-3 rounded-xl border border-stone-300 text-xs font-medium focus:border-bakery-orange focus:outline-none">
+            <button onclick="loadProfitLoss()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition-colors">
+              <i data-lucide="calculator" class="w-3.5 h-3.5"></i><span>Hitung</span>
+            </button>
+          </div>
+        </div>
+        <div id="acct-pl-result" class="text-xs text-stone-400">Memuat...</div>
+      </div>
+
+      <!-- Section: Neraca -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+              <i data-lucide="scale" class="w-5 h-5 text-bakery-orange"></i>
+              Neraca
+            </h3>
+            <p class="text-[11px] text-stone-400 mt-0.5">Posisi keuangan kumulatif sampai tanggal yang dipilih. Aset = Kewajiban + Ekuitas.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-stone-400">Per tanggal</span>
+            <input type="date" id="acct-bs-date" class="py-2 px-3 rounded-xl border border-stone-300 text-xs font-medium focus:border-bakery-orange focus:outline-none">
+            <button onclick="loadBalanceSheet()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition-colors">
+              <i data-lucide="search" class="w-3.5 h-3.5"></i><span>Tampilkan</span>
+            </button>
+          </div>
+        </div>
+        <div id="acct-bs-result" class="text-xs text-stone-400">Memuat...</div>
+      </div>
+
+    </div>
+    <!-- END VIEW 4: AKUNTANSI -->
+
+    <!-- VIEW 5: PURCHASE ORDER -->
+    <div id="owner-view-po" class="hidden space-y-6">
+
+      <!-- Section: Supplier -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+              <i data-lucide="truck" class="w-5 h-5 text-bakery-orange"></i>
+              Daftar Supplier
+            </h3>
+            <p class="text-[11px] text-stone-400 mt-0.5">Supplier bahan baku untuk Purchase Order.</p>
+          </div>
+          <button onclick="openSupplierModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-xs font-bold shadow-xs transition-colors">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>Tambah Supplier</span>
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-left text-stone-400 uppercase text-[10px] tracking-wider border-b border-stone-100">
+                <th class="py-2 pr-3 font-bold">Nama</th>
+                <th class="py-2 pr-3 font-bold">Telepon</th>
+                <th class="py-2 pr-3 font-bold">Alamat</th>
+                <th class="py-2 pr-3 font-bold">Status</th>
+                <th class="py-2 pr-3 font-bold text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="po-supplier-list">
+              <tr><td colspan="5" class="py-6 text-center text-stone-400">Memuat...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section: Daftar PO -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+              <i data-lucide="shopping-cart" class="w-5 h-5 text-bakery-orange"></i>
+              Purchase Order
+            </h3>
+            <p class="text-[11px] text-stone-400 mt-0.5">Terima PO = stok bahan otomatis nambah + jurnal pembelian tercatat.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="po-status-filter" onchange="renderPOs()" class="py-2 px-3 rounded-xl border border-stone-300 text-stone-700 font-medium focus:border-bakery-orange focus:outline-none text-xs">
+              <option value="">Semua Status</option>
+              <option value="draft">Draft</option>
+              <option value="sent">Dikirim</option>
+              <option value="received">Diterima</option>
+              <option value="cancelled">Dibatalkan</option>
+            </select>
+            <button onclick="loadPOData()" class="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 transition-colors" title="Muat ulang">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            </button>
+            <button onclick="openPOModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-xs font-bold shadow-xs transition-colors">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>Buat PO</span>
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-left text-stone-400 uppercase text-[10px] tracking-wider border-b border-stone-100">
+                <th class="py-2 pr-3 font-bold">No. PO</th>
+                <th class="py-2 pr-3 font-bold">Supplier</th>
+                <th class="py-2 pr-3 font-bold">Status</th>
+                <th class="py-2 pr-3 font-bold text-right">Subtotal</th>
+                <th class="py-2 pr-3 font-bold">Dibuat</th>
+                <th class="py-2 pr-3 font-bold text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="po-list">
+              <tr><td colspan="6" class="py-6 text-center text-stone-400">Memuat...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section: Detail PO -->
+      <div id="po-detail-wrap" class="hidden bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs">
+        <div id="po-detail"></div>
+      </div>
+
+    </div>
+    <!-- END VIEW 5: PURCHASE ORDER -->
+
   </main>
+<!-- MODAL: Akun -->
+  <div id="account-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl w-full max-w-md p-6 border border-stone-200 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="account-modal-title" class="text-lg font-extrabold text-[#2D1406]">Tambah Akun</h3>
+        <button onclick="closeModal('account-modal')" class="p-1.5 rounded-xl hover:bg-stone-100 text-stone-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="submitAccountForm(event)" class="space-y-3">
+        <input type="hidden" id="account-form-id">
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Kode Akun</label>
+          <input type="text" id="account-form-code" required placeholder="mis. 6100" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm font-mono">
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Nama Akun</label>
+          <input type="text" id="account-form-name" required placeholder="mis. Beban Listrik" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Tipe</label>
+            <select id="account-form-type" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+              <option value="aset">Aset</option>
+              <option value="kewajiban">Kewajiban</option>
+              <option value="ekuitas">Ekuitas</option>
+              <option value="pendapatan">Pendapatan</option>
+              <option value="beban">Beban</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Saldo Normal</label>
+            <select id="account-form-normal" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+              <option value="debit">Debit</option>
+              <option value="credit">Kredit</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeModal('account-modal')" class="flex-1 px-4 py-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold transition-colors">Batal</button>
+          <button type="submit" class="flex-1 px-4 py-2.5 rounded-2xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-sm font-bold shadow-xs transition-colors">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Jurnal Manual -->
+  <div id="mj-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl w-full max-w-2xl p-6 border border-stone-200 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-extrabold text-[#2D1406]">Jurnal Manual</h3>
+        <button onclick="closeModal('mj-modal')" class="p-1.5 rounded-xl hover:bg-stone-100 text-stone-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="submitManualJournal(event)" class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Tanggal</label>
+            <input type="date" id="mj-date" required class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+          </div>
+          <div>
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Keterangan</label>
+            <input type="text" id="mj-desc" required placeholder="mis. Bayar listrik Januari" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Baris Jurnal (isi Debit ATAU Kredit per baris)</label>
+          <div id="mj-lines" class="mt-1 space-y-2"></div>
+          <button type="button" onclick="addMJLine()" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition-colors">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i><span>Tambah Baris</span>
+          </button>
+        </div>
+        <div class="flex items-center justify-between text-sm font-bold bg-stone-50 rounded-2xl px-4 py-2.5">
+          <span class="text-stone-500">Total Debit: <span id="mj-total-debit" class="font-mono text-[#2D1406]">Rp 0</span></span>
+          <span class="text-stone-500">Total Kredit: <span id="mj-total-kredit" class="font-mono text-[#2D1406]">Rp 0</span></span>
+          <span id="mj-balance-ok" class="text-emerald-600"></span>
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="closeModal('mj-modal')" class="flex-1 px-4 py-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold transition-colors">Batal</button>
+          <button type="submit" class="flex-1 px-4 py-2.5 rounded-2xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-sm font-bold shadow-xs transition-colors">Simpan Jurnal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Supplier -->
+  <div id="supplier-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl w-full max-w-md p-6 border border-stone-200 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="supplier-modal-title" class="text-lg font-extrabold text-[#2D1406]">Tambah Supplier</h3>
+        <button onclick="closeModal('supplier-modal')" class="p-1.5 rounded-xl hover:bg-stone-100 text-stone-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="submitSupplierForm(event)" class="space-y-3">
+        <input type="hidden" id="supplier-form-id">
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Nama Supplier</label>
+          <input type="text" id="supplier-form-name" required placeholder="mis. TB Sumber Rezeki" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Telepon</label>
+          <input type="text" id="supplier-form-phone" placeholder="08xxxxxxxxxx" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Alamat</label>
+          <textarea id="supplier-form-address" rows="2" placeholder="Alamat toko/gudang" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm"></textarea>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeModal('supplier-modal')" class="flex-1 px-4 py-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold transition-colors">Batal</button>
+          <button type="submit" class="flex-1 px-4 py-2.5 rounded-2xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-sm font-bold shadow-xs transition-colors">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Buat PO -->
+  <div id="po-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl w-full max-w-2xl p-6 border border-stone-200 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-extrabold text-[#2D1406]">Buat Purchase Order</h3>
+        <button onclick="closeModal('po-modal')" class="p-1.5 rounded-xl hover:bg-stone-100 text-stone-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="submitPOForm(event)" class="space-y-3">
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Supplier</label>
+          <select id="po-form-supplier" required class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm"></select>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Item Bahan</label>
+          <div id="po-items" class="mt-1 space-y-2"></div>
+          <button type="button" onclick="addPOItemRow()" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition-colors">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i><span>Tambah Item</span>
+          </button>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Catatan</label>
+          <input type="text" id="po-form-notes" placeholder="Catatan untuk supplier (opsional)" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+        </div>
+        <div class="flex items-center justify-end text-sm font-bold bg-stone-50 rounded-2xl px-4 py-2.5">
+          <span class="text-stone-500">Total: <span id="po-form-total" class="font-mono text-[#2D1406]">Rp 0</span></span>
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="closeModal('po-modal')" class="flex-1 px-4 py-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold transition-colors">Batal</button>
+          <button type="submit" class="flex-1 px-4 py-2.5 rounded-2xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-sm font-bold shadow-xs transition-colors">Simpan PO (Draft)</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- =========================================================================
        MODAL: UBAH MODAL BAHAN (HPP) PER MENU
@@ -1635,26 +2003,41 @@
       const tabFin = document.getElementById('view-tab-finance');
       const tabInv = document.getElementById('view-tab-inventory');
       const tabStaff = document.getElementById('view-tab-staff');
+      const tabAcct = document.getElementById('view-tab-accounting');
+      const tabPO = document.getElementById('view-tab-po');
       const viewFin = document.getElementById('owner-view-finance');
       const viewInv = document.getElementById('owner-view-inventory');
       const viewStaff = document.getElementById('owner-view-staff');
+      const viewAcct = document.getElementById('owner-view-accounting');
+      const viewPO = document.getElementById('owner-view-po');
       const topActions = document.getElementById('inventory-top-actions');
 
       const TAB_IDLE = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all';
-      [tabFin, tabInv, tabStaff].forEach(t => { t.className = TAB_IDLE; });
-      [viewFin, viewInv, viewStaff].forEach(v => v.classList.add('hidden'));
+      const TAB_ACTIVE = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-bakery-orange text-white shadow-xs transition-all';
+      [tabFin, tabInv, tabStaff, tabAcct, tabPO].forEach(t => { t.className = TAB_IDLE; });
+      [viewFin, viewInv, viewStaff, viewAcct, viewPO].forEach(v => v.classList.add('hidden'));
 
       if (view === 'finance') {
         tabFin.className = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-[#2D1406] text-white shadow-xs transition-all';
         viewFin.classList.remove('hidden');
         topActions.classList.add('hidden');
       } else if (view === 'staff') {
-        tabStaff.className = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-bakery-orange text-white shadow-xs transition-all';
+        tabStaff.className = TAB_ACTIVE;
         viewStaff.classList.remove('hidden');
         topActions.classList.add('hidden');
         loadStaffData();
+      } else if (view === 'accounting') {
+        tabAcct.className = TAB_ACTIVE;
+        viewAcct.classList.remove('hidden');
+        topActions.classList.add('hidden');
+        loadAccountingData();
+      } else if (view === 'po') {
+        tabPO.className = TAB_ACTIVE;
+        viewPO.classList.remove('hidden');
+        topActions.classList.add('hidden');
+        loadPOData();
       } else {
-        tabInv.className = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-bakery-orange text-white shadow-xs transition-all';
+        tabInv.className = TAB_ACTIVE;
         viewInv.classList.remove('hidden');
         topActions.classList.remove('hidden');
         loadIngredients();
@@ -1842,6 +2225,560 @@
       } catch (err) {
         alert('Koneksi gagal.');
       }
+    }
+
+    // =========================================================================
+    // AKUNTANSI
+    // =========================================================================
+    // Helper modal generik (dipakai semua modal akuntansi & PO)
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    let acctAccounts = [];
+    let acctSchemaMissing = false;
+
+    const ACCT_TYPE_LABEL = { aset: 'Aset', kewajiban: 'Kewajiban', ekuitas: 'Ekuitas', pendapatan: 'Pendapatan', beban: 'Beban' };
+
+    function acctSchemaRow(colspan) {
+      return '<tr><td colspan="' + colspan + '" class="py-8 text-center">' +
+        '<div class="flex flex-col items-center gap-1">' +
+        '<i data-lucide="database-zap" class="w-8 h-8 text-amber-500"></i>' +
+        '<p class="font-bold text-stone-600 text-xs mt-1">Fitur Akuntansi belum aktif di database.</p>' +
+        '<p class="text-[11px] text-stone-400">Jalankan file <span class="font-mono font-bold">supabase-schema.sql</span> terbaru di Supabase SQL Editor, lalu klik tab ini lagi.</p>' +
+        '</div></td></tr>';
+    }
+
+    function acctSchemaBlock() {
+      return '<div class="py-8 text-center flex flex-col items-center gap-1">' +
+        '<i data-lucide="database-zap" class="w-8 h-8 text-amber-500"></i>' +
+        '<p class="font-bold text-stone-600 text-xs mt-1">Fitur Akuntansi belum aktif di database.</p>' +
+        '<p class="text-[11px] text-stone-400">Jalankan file <span class="font-mono font-bold">supabase-schema.sql</span> terbaru di Supabase SQL Editor, lalu klik tab ini lagi.</p></div>';
+    }
+
+    async function loadAccountingData() {
+      const today = new Date().toISOString().slice(0, 10);
+      const first = today.slice(0, 8) + '01';
+      ['acct-journal-from', 'acct-pl-from'].forEach(id => { const el = document.getElementById(id); if (el && !el.value) el.value = first; });
+      ['acct-journal-to', 'acct-pl-to', 'acct-bs-date'].forEach(id => { const el = document.getElementById(id); if (el && !el.value) el.value = today; });
+
+      try {
+        const res = await fetch('/api/owner/accounts');
+        const data = await res.json();
+        if (res.status === 503 || data.needsSchema) throw new Error('schema');
+        if (!res.ok || data.success !== true) throw new Error('api');
+        acctAccounts = data.accounts || [];
+        acctSchemaMissing = false;
+        renderAccounts();
+        await Promise.all([loadJournal(), loadProfitLoss(), loadBalanceSheet()]);
+      } catch (err) {
+        acctSchemaMissing = true;
+        document.getElementById('acct-account-list').innerHTML = acctSchemaRow(6);
+        document.getElementById('acct-journal-list').innerHTML = acctSchemaRow(5);
+        document.getElementById('acct-pl-result').innerHTML = acctSchemaBlock();
+        document.getElementById('acct-bs-result').innerHTML = acctSchemaBlock();
+      }
+      lucide.createIcons();
+    }
+
+    function renderAccounts() {
+      const tbody = document.getElementById('acct-account-list');
+      if (acctAccounts.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-stone-400 text-xs">Belum ada akun.</td></tr>'; return; }
+      tbody.innerHTML = acctAccounts.map(a =>
+        '<tr class="border-b border-stone-100 hover:bg-stone-50/50">' +
+        '<td class="py-2.5 pr-3 font-mono font-bold text-[#2D1406]">' + escapeOwnerHtml(a.code) + '</td>' +
+        '<td class="py-2.5 pr-3 font-semibold text-stone-700">' + escapeOwnerHtml(a.name) + '</td>' +
+        '<td class="py-2.5 pr-3 text-stone-500">' + (ACCT_TYPE_LABEL[a.type] || a.type) + '</td>' +
+        '<td class="py-2.5 pr-3 text-stone-500">' + (a.normal === 'debit' ? 'Debit' : 'Kredit') + '</td>' +
+        '<td class="py-2.5 pr-3">' + (a.active
+          ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Aktif</span>'
+          : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-500 border border-stone-300">Nonaktif</span>') + '</td>' +
+        '<td class="py-2.5 pr-1 text-right whitespace-nowrap">' +
+        '<button onclick="openAccountModal(\'' + a.code + '\')" class="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500" title="Ubah"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>' +
+        (a.active
+          ? '<button onclick="toggleAccountActive(\'' + a.code + '\', false)" class="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500" title="Nonaktifkan"><i data-lucide="eye-off" class="w-3.5 h-3.5"></i></button>'
+          : '<button onclick="toggleAccountActive(\'' + a.code + '\', true)" class="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500" title="Aktifkan"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>') +
+        '</td></tr>').join('');
+      lucide.createIcons();
+    }
+
+    function openAccountModal(code) {
+      const a = code ? acctAccounts.find(x => x.code === code) : null;
+      document.getElementById('account-modal-title').textContent = a ? 'Ubah Akun' : 'Tambah Akun';
+      const codeEl = document.getElementById('account-form-code');
+      codeEl.value = a ? a.code : '';
+      codeEl.readOnly = !!a;
+      codeEl.classList.toggle('bg-stone-100', !!a);
+      document.getElementById('account-form-name').value = a ? a.name : '';
+      document.getElementById('account-form-type').value = a ? a.type : 'aset';
+      document.getElementById('account-form-normal').value = a ? a.normal : 'debit';
+      openModal('account-modal');
+    }
+
+    async function submitAccountForm(e) {
+      e.preventDefault();
+      const body = {
+        code: document.getElementById('account-form-code').value.trim(),
+        name: document.getElementById('account-form-name').value.trim(),
+        type: document.getElementById('account-form-type').value,
+        normal: document.getElementById('account-form-normal').value
+      };
+      try {
+        const res = await fetch('/api/owner/accounts/upsert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (data.success) { closeModal('account-modal'); await loadAccountingData(); }
+        else alert(data.message || 'Gagal menyimpan akun.');
+      } catch (err) { alert('Koneksi gagal.'); }
+    }
+
+    async function toggleAccountActive(code, active) {
+      if (!confirm(active ? 'Aktifkan kembali akun ini?' : 'Nonaktifkan akun ini? (Akun tidak bisa dipakai di jurnal baru)')) return;
+      try {
+        const res = await fetch('/api/owner/accounts/set-active', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, active: active }) });
+        const data = await res.json();
+        if (data.success) await loadAccountingData();
+        else alert(data.message || 'Gagal mengubah status.');
+      } catch (err) { alert('Koneksi gagal.'); }
+    }
+
+    async function loadJournal() {
+      if (acctSchemaMissing) return;
+      const from = document.getElementById('acct-journal-from').value;
+      const to = document.getElementById('acct-journal-to').value;
+      const tbody = document.getElementById('acct-journal-list');
+      tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-stone-400 text-xs">Memuat...</td></tr>';
+      try {
+        const res = await fetch('/api/owner/journal?from=' + from + '&to=' + to);
+        const data = await res.json();
+        if (!res.ok || data.success !== true) throw new Error('api');
+        const entries = data.entries || [];
+        if (!entries.length) { tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-stone-400 text-xs">Belum ada jurnal di periode ini.</td></tr>'; return; }
+        tbody.innerHTML = entries.map(e => {
+          const lines = (e.lines || []).map(l =>
+            '<tr class="border-b border-stone-50">' +
+            '<td class="py-1.5 pr-3"></td>' +
+            '<td class="py-1.5 pr-3"></td>' +
+            '<td class="py-1.5 pr-3 text-stone-600"><span class="font-mono font-bold text-stone-700">' + escapeOwnerHtml(l.accountCode) + '</span> &mdash; ' + escapeOwnerHtml(l.accountName) + '</td>' +
+            '<td class="py-1.5 pr-3 text-right font-mono text-stone-700">' + (l.debit ? formatRupiah(l.debit) : '<span class="text-stone-300">&mdash;</span>') + '</td>' +
+            '<td class="py-1.5 pr-3 text-right font-mono text-stone-700">' + (l.kredit ? formatRupiah(l.kredit) : '<span class="text-stone-300">&mdash;</span>') + '</td>' +
+            '</tr>').join('');
+          return '<tr class="bg-stone-50/70">' +
+            '<td class="py-2 pr-3 font-semibold text-stone-500 whitespace-nowrap">' + escapeOwnerHtml(e.entryDate) + '</td>' +
+            '<td class="py-2 pr-3 font-bold text-[#2D1406]" colspan="4">' + escapeOwnerHtml(e.description) +
+            (e.refType ? ' <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-stone-200 text-stone-600">' + escapeOwnerHtml(e.refType) + '</span>' : '') +
+            '</td></tr>' + lines;
+        }).join('');
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-rose-500 text-xs">Gagal memuat jurnal.</td></tr>';
+      }
+      lucide.createIcons();
+    }
+
+    function mjAccountOptions() {
+      return acctAccounts.filter(a => a.active).map(a =>
+        '<option value="' + escapeOwnerHtml(a.code) + '">' + escapeOwnerHtml(a.code) + ' &mdash; ' + escapeOwnerHtml(a.name) + '</option>').join('');
+    }
+
+    function openManualJournalModal() {
+      document.getElementById('mj-date').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('mj-desc').value = '';
+      document.getElementById('mj-lines').innerHTML = '';
+      addMJLine();
+      addMJLine();
+      openModal('mj-modal');
+    }
+
+    function addMJLine() {
+      const wrap = document.getElementById('mj-lines');
+      const row = document.createElement('div');
+      row.className = 'grid grid-cols-[1fr_100px_100px_32px] gap-2 items-center mj-line';
+      row.innerHTML =
+        '<select class="mj-account px-3 py-2 rounded-xl border border-stone-300 text-xs focus:border-bakery-orange focus:outline-none">' + mjAccountOptions() + '</select>' +
+        '<input type="number" min="0" value="0" placeholder="Debit" class="mj-debit px-3 py-2 rounded-xl border border-stone-300 text-xs font-mono focus:border-bakery-orange focus:outline-none" oninput="updateMJTtotals()">' +
+        '<input type="number" min="0" value="0" placeholder="Kredit" class="mj-credit px-3 py-2 rounded-xl border border-stone-300 text-xs font-mono focus:border-bakery-orange focus:outline-none" oninput="updateMJTtotals()">' +
+        '<button type="button" onclick="this.parentElement.remove();updateMJTtotals()" class="p-1.5 rounded-lg hover:bg-rose-50 text-rose-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>';
+      wrap.appendChild(row);
+      updateMJTtotals();
+      lucide.createIcons();
+    }
+
+    function updateMJTtotals() {
+      let d = 0, k = 0;
+      document.querySelectorAll('#mj-lines .mj-line').forEach(r => {
+        d += Number(r.querySelector('.mj-debit').value) || 0;
+        k += Number(r.querySelector('.mj-credit').value) || 0;
+      });
+      document.getElementById('mj-total-debit').textContent = formatRupiah(d);
+      document.getElementById('mj-total-kredit').textContent = formatRupiah(k);
+      const okEl = document.getElementById('mj-balance-ok');
+      if (d === k && d > 0) { okEl.textContent = '\u2713 Balance'; okEl.className = 'text-emerald-600 font-bold'; }
+      else { okEl.textContent = '\u2717 Belum balance'; okEl.className = 'text-rose-500 font-bold'; }
+    }
+
+    async function submitManualJournal(e) {
+      e.preventDefault();
+      const lines = [];
+      document.querySelectorAll('#mj-lines .mj-line').forEach(r => {
+        lines.push({
+          account_code: r.querySelector('.mj-account').value,
+          debit: Number(r.querySelector('.mj-debit').value) || 0,
+          kredit: Number(r.querySelector('.mj-credit').value) || 0
+        });
+      });
+      const td = lines.reduce((s, l) => s + l.debit, 0);
+      const tk = lines.reduce((s, l) => s + l.kredit, 0);
+      if (td !== tk || td <= 0) { alert('Jurnal tidak balance: total debit harus sama dengan total kredit dan lebih dari 0.'); return; }
+      try {
+        const res = await fetch('/api/owner/journal/manual', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description: document.getElementById('mj-desc').value.trim(), entry_date: document.getElementById('mj-date').value, lines: lines })
+        });
+        const data = await res.json();
+        if (data.success) { closeModal('mj-modal'); await loadJournal(); await loadProfitLoss(); await loadBalanceSheet(); }
+        else alert(data.message || 'Gagal menyimpan jurnal.');
+      } catch (err) { alert('Koneksi gagal.'); }
+    }
+
+    async function runBackfill() {
+      if (!confirm('Buat jurnal otomatis untuk penjualan, waste, restock, dan terima PO lama yang belum punya jurnal? (Aman diulang, tidak duplikat)')) return;
+      try {
+        const res = await fetch('/api/owner/journal/backfill', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          alert('Backfill selesai.\n' + (data.message || (data.created + ' jurnal dibuat.')));
+          await loadJournal(); await loadProfitLoss(); await loadBalanceSheet();
+        } else alert(data.message || 'Backfill gagal.');
+      } catch (err) { alert('Koneksi gagal.'); }
+    }
+
+    async function loadProfitLoss() {
+      if (acctSchemaMissing) return;
+      const from = document.getElementById('acct-pl-from').value;
+      const to = document.getElementById('acct-pl-to').value;
+      const wrap = document.getElementById('acct-pl-result');
+      wrap.innerHTML = '<p class="text-xs text-stone-400">Menghitung...</p>';
+      try {
+        const res = await fetch('/api/owner/reports/profit-loss?from=' + from + '&to=' + to);
+        const data = await res.json();
+        if (!res.ok || data.success !== true || !data.profitLoss) throw new Error('api');
+        const r = data.profitLoss;
+        const row = (label, val, bold, color) =>
+          '<div class="flex justify-between py-1.5 ' + (bold ? 'border-t border-stone-200 font-extrabold text-sm mt-1 pt-2.5' : '') + '">' +
+          '<span class="' + (color || 'text-stone-600') + '">' + label + '</span>' +
+          '<span class="font-mono ' + (color || 'text-[#2D1406]') + '">' + formatRupiah(val) + '</span></div>';
+        let html = '<div class="max-w-xl text-xs sm:text-sm">' +
+          row('Pendapatan Penjualan', r.revenue, false) +
+          row('Harga Pokok Penjualan (HPP)', r.cogs, false) +
+          row('Laba Kotor', r.grossProfit, true, r.grossProfit >= 0 ? 'text-emerald-700' : 'text-rose-600') +
+          '<div class="pt-3 font-bold text-stone-500 text-[11px] uppercase tracking-wider">Beban Operasional</div>';
+        Object.keys(r.expenses || {}).forEach(code => {
+          const ex = r.expenses[code];
+          html += row(escapeOwnerHtml(ex.name) + ' (' + escapeOwnerHtml(code) + ')', ex.amount, false);
+        });
+        html += row('Total Beban', r.totalExpenses, false) +
+          row('LABA BERSIH', r.netProfit, true, r.netProfit >= 0 ? 'text-emerald-700' : 'text-rose-600') +
+          '</div>';
+        wrap.innerHTML = html;
+      } catch (err) {
+        wrap.innerHTML = '<p class="text-xs text-rose-500">Gagal menghitung laba rugi.</p>';
+      }
+    }
+
+    async function loadBalanceSheet() {
+      if (acctSchemaMissing) return;
+      const asOf = document.getElementById('acct-bs-date').value;
+      const wrap = document.getElementById('acct-bs-result');
+      wrap.innerHTML = '<p class="text-xs text-stone-400">Memuat...</p>';
+      try {
+        const res = await fetch('/api/owner/reports/balance-sheet?as_of=' + asOf);
+        const data = await res.json();
+        if (!res.ok || data.success !== true || !data.assets) throw new Error('api');
+        const bsRow = (name, code, val) =>
+          '<div class="flex justify-between py-1"><span class="text-stone-600">' + escapeOwnerHtml(name) +
+          ' <span class="font-mono text-stone-400 text-[11px]">(' + escapeOwnerHtml(code) + ')</span></span>' +
+          '<span class="font-mono text-[#2D1406]">' + formatRupiah(val) + '</span></div>';
+        const col = (title, section) =>
+          '<div class="bg-stone-50/70 rounded-2xl p-4"><h4 class="font-extrabold text-[#2D1406] text-sm mb-2">' + title + '</h4>' +
+          (section.accounts || []).map(i => bsRow(i.name, i.code, i.balance)).join('') +
+          '<div class="flex justify-between py-1.5 border-t border-stone-200 mt-1 font-extrabold"><span>Total</span><span class="font-mono">' + formatRupiah(section.total) + '</span></div></div>';
+        const retainedRow = '<div class="flex justify-between py-1"><span class="text-stone-600">Laba Ditahan (periode berjalan)</span>' +
+          '<span class="font-mono text-[#2D1406]">' + formatRupiah(data.equity.retainedEarnings || 0) + '</span></div>';
+        const eqCol = '<div class="bg-stone-50/70 rounded-2xl p-4"><h4 class="font-extrabold text-[#2D1406] text-sm mb-2">EKUITAS</h4>' +
+          (data.equity.accounts || []).map(i => bsRow(i.name, i.code, i.balance)).join('') + retainedRow +
+          '<div class="flex justify-between py-1.5 border-t border-stone-200 mt-1 font-extrabold"><span>Total</span><span class="font-mono">' + formatRupiah(data.equity.total) + '</span></div></div>';
+        const isBalanced = data.check === 0;
+        wrap.innerHTML = '<div class="grid sm:grid-cols-2 gap-4 text-xs sm:text-sm">' +
+          col('ASET', data.assets) +
+          '<div class="space-y-4">' + col('KEWAJIBAN', data.liabilities) + eqCol + '</div>' +
+          '</div>' +
+          '<div class="mt-3 text-xs font-bold ' + (isBalanced ? 'text-emerald-700' : 'text-rose-600') + '">' +
+          (isBalanced ? '\u2713 Balance: Aset = Kewajiban + Ekuitas' : '\u2717 TIDAK BALANCE (selisih ' + formatRupiah(data.check) + ')') + '</div>';
+      } catch (err) {
+        wrap.innerHTML = '<p class="text-xs text-rose-500">Gagal memuat neraca.</p>';
+      }
+    }
+
+    // =========================================================================
+    // PURCHASE ORDER
+    // =========================================================================
+    let poSuppliers = [];
+    let poList = [];
+    let poIngredients = [];
+    let poSchemaMissing = false;
+
+    const PO_STATUS_LABEL = { draft: 'Draft', sent: 'Dikirim', received: 'Diterima', cancelled: 'Dibatalkan' };
+    const PO_STATUS_BADGE = {
+      draft: 'bg-stone-100 text-stone-600 border-stone-300',
+      sent: 'bg-amber-100 text-amber-800 border-amber-300',
+      received: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+      cancelled: 'bg-rose-100 text-rose-700 border-rose-300'
+    };
+
+    function poSchemaRow(colspan) {
+      return '<tr><td colspan="' + colspan + '" class="py-8 text-center">' +
+        '<div class="flex flex-col items-center gap-1">' +
+        '<i data-lucide="database-zap" class="w-8 h-8 text-amber-500"></i>' +
+        '<p class="font-bold text-stone-600 text-xs mt-1">Fitur Purchase Order belum aktif di database.</p>' +
+        '<p class="text-[11px] text-stone-400">Jalankan file <span class="font-mono font-bold">supabase-schema.sql</span> terbaru di Supabase SQL Editor, lalu klik tab ini lagi.</p>' +
+        '</div></td></tr>';
+    }
+
+    async function loadPOData() {
+      try {
+        const [supRes, poRes, ingRes] = await Promise.all([
+          fetch('/api/owner/suppliers'), fetch('/api/owner/purchase-orders'), fetch('/api/owner/ingredients')
+        ]);
+        const supData = await supRes.json();
+        if (supRes.status === 503 || supData.needsSchema) throw new Error('schema');
+        if (!supRes.ok || supData.success !== true) throw new Error('api');
+        poSuppliers = supData.suppliers || [];
+        const poData = await poRes.json();
+        poList = (poData.success && poData.purchaseOrders) ? poData.purchaseOrders : [];
+        const ingData = await ingRes.json();
+        poIngredients = (ingData.success && ingData.ingredients) ? ingData.ingredients : [];
+        poSchemaMissing = false;
+        renderSuppliers();
+        renderPOs();
+        document.getElementById('po-detail-wrap').classList.add('hidden');
+      } catch (err) {
+        poSchemaMissing = true;
+        document.getElementById('po-supplier-list').innerHTML = poSchemaRow(5);
+        document.getElementById('po-list').innerHTML = poSchemaRow(6);
+      }
+      lucide.createIcons();
+    }
+
+    function renderSuppliers() {
+      const tbody = document.getElementById('po-supplier-list');
+      if (!poSuppliers.length) { tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-stone-400 text-xs">Belum ada supplier.</td></tr>'; return; }
+      tbody.innerHTML = poSuppliers.map(s =>
+        '<tr class="border-b border-stone-100 hover:bg-stone-50/50">' +
+        '<td class="py-2.5 pr-3 font-bold text-[#2D1406]">' + escapeOwnerHtml(s.name) + '</td>' +
+        '<td class="py-2.5 pr-3 text-stone-500">' + escapeOwnerHtml(s.phone || '\u2014') + '</td>' +
+        '<td class="py-2.5 pr-3 text-stone-500 max-w-[200px] truncate">' + escapeOwnerHtml(s.address || '\u2014') + '</td>' +
+        '<td class="py-2.5 pr-3">' + (s.active
+          ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Aktif</span>'
+          : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-500 border border-stone-300">Nonaktif</span>') + '</td>' +
+        '<td class="py-2.5 pr-1 text-right whitespace-nowrap">' +
+        '<button onclick="openSupplierModal(\'' + s.id + '\')" class="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500" title="Ubah"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>' +
+        (s.active
+          ? '<button onclick="toggleSupplierActive(\'' + s.id + '\', false)" class="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500" title="Nonaktifkan"><i data-lucide="eye-off" class="w-3.5 h-3.5"></i></button>'
+          : '<button onclick="toggleSupplierActive(\'' + s.id + '\', true)" class="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500" title="Aktifkan"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>') +
+        '</td></tr>').join('');
+      lucide.createIcons();
+    }
+
+    function openSupplierModal(id) {
+      document.getElementById('supplier-form-id').value = id || '';
+      const s = id ? poSuppliers.find(x => x.id === id) : null;
+      document.getElementById('supplier-modal-title').textContent = s ? 'Ubah Supplier' : 'Tambah Supplier';
+      document.getElementById('supplier-form-name').value = s ? s.name : '';
+      document.getElementById('supplier-form-phone').value = s ? (s.phone || '') : '';
+      document.getElementById('supplier-form-address').value = s ? (s.address || '') : '';
+      openModal('supplier-modal');
+    }
+
+    async function submitSupplierForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('supplier-form-id').value;
+      const body = {
+        name: document.getElementById('supplier-form-name').value.trim(),
+        phone: document.getElementById('supplier-form-phone').value.trim(),
+        address: document.getElementById('supplier-form-address').value.trim()
+      };
+      if (id) body.id = id;
+      try {
+        const res = await fetch('/api/owner/suppliers/upsert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (data.success) { closeModal('supplier-modal'); await loadPOData(); }
+        else alert(data.message || 'Gagal menyimpan supplier.');
+      } catch (err) { alert('Koneksi gagal.'); }
+    }
+
+    async function toggleSupplierActive(id, active) {
+      if (!confirm(active ? 'Aktifkan kembali supplier ini?' : 'Nonaktifkan supplier ini?')) return;
+      try {
+        const res = await fetch('/api/owner/suppliers/set-active', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, active }) });
+        const data = await res.json();
+        if (data.success) await loadPOData();
+        else alert(data.message || 'Gagal mengubah status.');
+      } catch (err) { alert('Koneksi gagal.'); }
+    }
+
+    function renderPOs() {
+      const filterEl = document.getElementById('po-status-filter');
+      const filter = filterEl ? filterEl.value : '';
+      const tbody = document.getElementById('po-list');
+      const list = poList.filter(p => !filter || p.status === filter);
+      if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-stone-400 text-xs">Belum ada PO.</td></tr>'; return; }
+      tbody.innerHTML = list.map(p =>
+        '<tr class="border-b border-stone-100 hover:bg-stone-50/50">' +
+        '<td class="py-2.5 pr-3 font-mono font-bold text-[#2D1406]">' + escapeOwnerHtml(p.id) + '</td>' +
+        '<td class="py-2.5 pr-3 font-semibold text-stone-700">' + escapeOwnerHtml(p.supplierName || '\u2014') + '</td>' +
+        '<td class="py-2.5 pr-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ' + (PO_STATUS_BADGE[p.status] || PO_STATUS_BADGE.draft) + '">' + (PO_STATUS_LABEL[p.status] || p.status) + '</span></td>' +
+        '<td class="py-2.5 pr-3 text-right font-mono text-stone-700">' + formatRupiah(p.subtotal) + '</td>' +
+        '<td class="py-2.5 pr-3 text-stone-500 text-[11px]">' + new Date(p.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) + '</td>' +
+        '<td class="py-2.5 pr-1 text-right"><button onclick="viewPODetail(\'' + p.id + '\')" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 text-[11px] font-bold transition-colors"><i data-lucide="eye" class="w-3.5 h-3.5"></i><span>Detail</span></button></td>' +
+        '</tr>').join('');
+      lucide.createIcons();
+    }
+
+    function openPOModal() {
+      const sel = document.getElementById('po-form-supplier');
+      const active = poSuppliers.filter(s => s.active);
+      if (!active.length) { alert('Tambah supplier aktif dulu sebelum membuat PO.'); return; }
+      sel.innerHTML = active.map(s => '<option value="' + s.id + '">' + escapeOwnerHtml(s.name) + '</option>').join('');
+      document.getElementById('po-form-notes').value = '';
+      document.getElementById('po-items').innerHTML = '';
+      addPOItemRow();
+      openModal('po-modal');
+    }
+
+    function poIngredientOptions() {
+      return poIngredients.map(i =>
+        '<option value="' + i.id + '" data-cost="' + (i.costPerUnit || 0) + '">' +
+        escapeOwnerHtml(i.name) + ' (' + escapeOwnerHtml(i.unit || '') + ')</option>').join('');
+    }
+
+    function addPOItemRow() {
+      const wrap = document.getElementById('po-items');
+      const row = document.createElement('div');
+      row.className = 'grid grid-cols-[1fr_90px_120px_32px] gap-2 items-center po-item-row';
+      row.innerHTML =
+        '<select class="po-item-ing px-3 py-2 rounded-xl border border-stone-300 text-xs focus:border-bakery-orange focus:outline-none">' + poIngredientOptions() + '</select>' +
+        '<input type="number" min="0.01" step="0.01" value="1" placeholder="Qty" class="po-item-qty px-3 py-2 rounded-xl border border-stone-300 text-xs font-mono focus:border-bakery-orange focus:outline-none" oninput="updatePOTotal()">' +
+        '<input type="number" min="0" value="0" placeholder="Harga/satuan" class="po-item-price px-3 py-2 rounded-xl border border-stone-300 text-xs font-mono focus:border-bakery-orange focus:outline-none" oninput="updatePOTotal()">' +
+        '<button type="button" onclick="this.parentElement.remove();updatePOTotal()" class="p-1.5 rounded-lg hover:bg-rose-50 text-rose-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>';
+      wrap.appendChild(row);
+      const sel = row.querySelector('.po-item-ing');
+      const applyCost = () => {
+        const opt = sel.selectedOptions[0];
+        if (opt) row.querySelector('.po-item-price').value = opt.dataset.cost || 0;
+        updatePOTotal();
+      };
+      sel.addEventListener('change', applyCost);
+      applyCost();
+      lucide.createIcons();
+    }
+
+    function updatePOTotal() {
+      let total = 0;
+      document.querySelectorAll('#po-items .po-item-row').forEach(r => {
+        total += (Number(r.querySelector('.po-item-qty').value) || 0) * (Number(r.querySelector('.po-item-price').value) || 0);
+      });
+      document.getElementById('po-form-total').textContent = formatRupiah(Math.round(total));
+    }
+
+    async function submitPOForm(e) {
+      e.preventDefault();
+      const items = [];
+      document.querySelectorAll('#po-items .po-item-row').forEach(r => {
+        const qty = Number(r.querySelector('.po-item-qty').value) || 0;
+        const price = Number(r.querySelector('.po-item-price').value) || 0;
+        if (qty > 0 && price >= 0) items.push({ ingredient_id: r.querySelector('.po-item-ing').value, qty: qty, unit_price: price });
+      });
+      if (!items.length) { alert('Isi minimal 1 item dengan qty lebih dari 0.'); return; }
+      try {
+        const res = await fetch('/api/owner/purchase-orders/create', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ supplier_id: document.getElementById('po-form-supplier').value, notes: document.getElementById('po-form-notes').value.trim(), items: items })
+        });
+        const data = await res.json();
+        if (data.success) { closeModal('po-modal'); await loadPOData(); viewPODetail(data.po.id); }
+        else alert(data.message || 'Gagal membuat PO.');
+      } catch (err) { alert('Koneksi gagal.'); }
+    }
+
+    async function viewPODetail(id) {
+      const wrap = document.getElementById('po-detail-wrap');
+      const el = document.getElementById('po-detail');
+      wrap.classList.remove('hidden');
+      el.innerHTML = '<p class="text-xs text-stone-400">Memuat detail PO...</p>';
+      try {
+        const res = await fetch('/api/owner/purchase-orders?id=' + encodeURIComponent(id));
+        const data = await res.json();
+        if (!res.ok || data.success !== true || !data.po) throw new Error('api');
+        const p = data.po;
+        const items = p.items || [];
+        let actions = '';
+        if (p.status === 'draft') {
+          actions += '<button onclick="sendPO(\'' + p.id + '\')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors"><i data-lucide="send" class="w-3.5 h-3.5"></i><span>Kirim ke Supplier</span></button>';
+          actions += '<button onclick="cancelPO(\'' + p.id + '\')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition-colors"><i data-lucide="x-circle" class="w-3.5 h-3.5"></i><span>Batalkan</span></button>';
+        } else if (p.status === 'sent') {
+          actions += '<button onclick="receivePO(\'' + p.id + '\', true)" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors"><i data-lucide="package-check" class="w-3.5 h-3.5"></i><span>Terima (Tunai)</span></button>';
+          actions += '<button onclick="receivePO(\'' + p.id + '\', false)" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-xs font-bold transition-colors"><i data-lucide="package-check" class="w-3.5 h-3.5"></i><span>Terima (Kredit/Hutang)</span></button>';
+          actions += '<button onclick="cancelPO(\'' + p.id + '\')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition-colors"><i data-lucide="x-circle" class="w-3.5 h-3.5"></i><span>Batalkan</span></button>';
+        }
+        el.innerHTML =
+          '<div class="flex flex-wrap items-start justify-between gap-3 mb-4">' +
+          '<div><h3 class="text-base font-extrabold text-[#2D1406] font-mono">' + escapeOwnerHtml(p.id) + '</h3>' +
+          '<p class="text-xs text-stone-500 mt-0.5">' + escapeOwnerHtml(p.supplierName || '\u2014') +
+          (p.notes ? ' &middot; ' + escapeOwnerHtml(p.notes) : '') + '</p>' +
+          '<span class="inline-block mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border ' + (PO_STATUS_BADGE[p.status] || PO_STATUS_BADGE.draft) + '">' + (PO_STATUS_LABEL[p.status] || p.status) + '</span></div>' +
+          '<div class="flex flex-wrap gap-2">' + actions + '</div></div>' +
+          '<div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr class="text-left text-stone-400 uppercase text-[10px] tracking-wider border-b border-stone-100">' +
+          '<th class="py-2 pr-3 font-bold">Bahan</th><th class="py-2 pr-3 font-bold text-right">Qty</th><th class="py-2 pr-3 font-bold text-right">Harga/Satuan</th><th class="py-2 pr-3 font-bold text-right">Subtotal</th></tr></thead>' +
+          '<tbody>' + items.map(i =>
+            '<tr class="border-b border-stone-100"><td class="py-2.5 pr-3 font-semibold text-stone-700">' + escapeOwnerHtml(i.ingredientName) + ' <span class="text-stone-400">(' + escapeOwnerHtml(i.unit) + ')</span></td>' +
+            '<td class="py-2.5 pr-3 text-right font-mono">' + i.qty + '</td>' +
+            '<td class="py-2.5 pr-3 text-right font-mono">' + formatRupiah(i.unitPrice) + '</td>' +
+            '<td class="py-2.5 pr-3 text-right font-mono font-bold">' + formatRupiah(i.qty * i.unitPrice) + '</td></tr>').join('') +
+          '</tbody><tfoot><tr><td colspan="3" class="py-2.5 pr-3 text-right font-bold text-stone-500">TOTAL</td>' +
+          '<td class="py-2.5 pr-3 text-right font-mono font-extrabold text-[#2D1406]">' + formatRupiah(p.subtotal) + '</td></tr></tfoot></table></div>';
+      } catch (err) {
+        el.innerHTML = '<p class="text-xs text-rose-500">Gagal memuat detail PO.</p>';
+      }
+      lucide.createIcons();
+    }
+
+    async function sendPO(id) {
+      if (!confirm('Kirim PO ini ke supplier? Status berubah jadi "Dikirim".')) return;
+      try {
+        const res = await fetch('/api/owner/purchase-orders/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
+        const data = await res.json();
+        if (data.success) { await loadPOData(); viewPODetail(id); } else alert(data.message || 'Gagal mengirim PO.');
+      } catch (err) { alert('Koneksi gagal.'); }
+    }
+
+    async function receivePO(id, paid) {
+      const msg = paid
+        ? 'Terima barang & catat pembayaran TUNAI? Stok bahan bertambah dan jurnal pembelian tercatat.'
+        : 'Terima barang dengan status KREDIT (hutang usaha)? Stok bahan bertambah dan jurnal hutang tercatat.';
+      if (!confirm(msg)) return;
+      try {
+        const res = await fetch('/api/owner/purchase-orders/receive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id, paid: paid }) });
+        const data = await res.json();
+        if (data.success) { await loadPOData(); viewPODetail(id); alert('PO diterima. ' + data.results.itemsReceived + ' item masuk stok.'); }
+        else alert(data.message || 'Gagal menerima PO.');
+      } catch (err) { alert('Koneksi gagal.'); }
+    }
+
+    async function cancelPO(id) {
+      if (!confirm('Batalkan PO ini?')) return;
+      try {
+        const res = await fetch('/api/owner/purchase-orders/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
+        const data = await res.json();
+        if (data.success) { await loadPOData(); viewPODetail(id); } else alert(data.message || 'Gagal membatalkan PO.');
+      } catch (err) { alert('Koneksi gagal.'); }
     }
 
     async function fetchIngredientsSummaryBadge() {      try {
