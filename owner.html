@@ -424,6 +424,7 @@
               <th class="py-3 px-4">Menu Dipesan</th>
               <th class="py-3 px-4">Metode</th>
               <th class="py-3 px-4 text-right">Total Bayar</th>
+              <th class="py-3 px-4 text-center">Aksi</th>
             </tr>
           </thead>
           <tbody id="recent-orders-table-body" class="divide-y divide-stone-100">
@@ -753,6 +754,42 @@
 
 <!-- VIEW 4: AKUNTANSI -->
     <div id="owner-view-accounting" class="hidden space-y-6">
+
+      <!-- Section: Pengaturan Pajak & Service Charge -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+              <i data-lucide="percent" class="w-5 h-5 text-bakery-orange"></i>
+              Pengaturan Pajak & Service Charge
+            </h3>
+            <p class="text-[11px] text-stone-400 mt-0.5">Tarif dipakai otomatis di kasir POS. Pajak dihitung dari (subtotal − diskon).</p>
+          </div>
+          <button onclick="savePosSettings()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors">
+            <i data-lucide="save" class="w-3.5 h-3.5"></i>
+            <span>Simpan Pengaturan</span>
+          </button>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div>
+            <label class="text-xs font-bold text-stone-600 mb-1.5 block">Label Pajak</label>
+            <input id="set-tax-label" type="text" maxlength="30" class="w-full px-3 py-2 rounded-xl border border-stone-300 text-sm focus:outline-none focus:border-bakery-orange" placeholder="PB1" />
+          </div>
+          <div>
+            <label class="text-xs font-bold text-stone-600 mb-1.5 block">Tarif Pajak (%)</label>
+            <input id="set-tax-rate" type="number" min="0" max="100" step="0.5" class="w-full px-3 py-2 rounded-xl border border-stone-300 text-sm font-mono focus:outline-none focus:border-bakery-orange" placeholder="10" />
+          </div>
+          <div>
+            <label class="text-xs font-bold text-stone-600 mb-1.5 block">Label Service</label>
+            <input id="set-service-label" type="text" maxlength="30" class="w-full px-3 py-2 rounded-xl border border-stone-300 text-sm focus:outline-none focus:border-bakery-orange" placeholder="Service Charge" />
+          </div>
+          <div>
+            <label class="text-xs font-bold text-stone-600 mb-1.5 block">Tarif Service (%)</label>
+            <input id="set-service-rate" type="number" min="0" max="100" step="0.5" class="w-full px-3 py-2 rounded-xl border border-stone-300 text-sm font-mono focus:outline-none focus:border-bakery-orange" placeholder="0" />
+          </div>
+        </div>
+        <p id="pos-settings-status" class="text-[11px] text-stone-400 mt-2"></p>
+      </div>
 
       <!-- Section: Chart of Accounts -->
       <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs">
@@ -1116,6 +1153,53 @@
   <!-- =========================================================================
        MODAL: UBAH MODAL BAHAN (HPP) PER MENU
        ========================================================================= -->
+  <!-- MODAL: Void Order -->
+  <div id="void-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
+    <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-stone-200">
+      <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+        <h4 class="text-sm font-extrabold text-rose-700 flex items-center gap-2">
+          <i data-lucide="ban" class="w-4 h-4"></i>Void Order
+        </h4>
+        <button onclick="closeVoidModal()" class="p-1 rounded-full text-stone-400 hover:text-stone-700">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="mt-4 space-y-3.5 text-xs">
+        <div class="bg-rose-50 border border-rose-200 rounded-2xl p-3 text-rose-800">
+          <p class="font-bold font-mono" id="void-order-id">-</p>
+          <p>Total: <span class="font-mono font-bold" id="void-order-total">Rp 0</span></p>
+          <p class="text-[10px] mt-1 text-rose-600">Jurnal penjualan & HPP dibalik otomatis, stok dikembalikan. Tidak bisa dibatalkan.</p>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-600 mb-1.5 block">Alasan Void *</label>
+          <input id="void-reason" type="text" maxlength="200" placeholder="cth: salah input menu" class="w-full px-3 py-2.5 rounded-2xl border border-stone-300 text-sm focus:outline-none focus:border-rose-400" />
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-600 mb-1.5 block">PIN Owner *</label>
+          <input id="void-pin" type="password" maxlength="6" inputmode="numeric" placeholder="PIN owner" class="w-full px-3 py-2.5 rounded-2xl border border-stone-300 text-sm font-mono focus:outline-none focus:border-rose-400" />
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="closeVoidModal()" class="flex-1 px-4 py-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold transition-colors">Batal</button>
+          <button type="button" onclick="submitVoidOrder()" class="flex-1 px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold transition-colors">Void Sekarang</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Struk Void -->
+  <div id="void-receipt-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
+    <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+        <h4 class="text-sm font-extrabold text-[#2D1406]">Struk Void</h4>
+        <button onclick="closeVoidReceiptModal()" class="p-1 rounded-full text-stone-400 hover:text-stone-700">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div id="void-receipt-body" class="mt-3 font-mono text-[11px] text-stone-800"></div>
+      <button onclick="closeVoidReceiptModal()" class="mt-4 w-full px-4 py-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold transition-colors">Tutup</button>
+    </div>
+  </div>
+
   <div id="cost-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
     <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 animate-in fade-in zoom-in-95 duration-150">
       <div class="flex items-center justify-between pb-3 border-b border-stone-100">
@@ -1896,7 +1980,7 @@
     function renderRecentOrders(orders = []) {
       const container = document.getElementById('recent-orders-table-body');
       if (orders.length === 0) {
-        container.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-stone-400">Belum ada riwayat pesanan</td></tr>`;
+        container.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-stone-400">Belum ada riwayat pesanan</td></tr>`;
         return;
       }
 
@@ -1904,10 +1988,14 @@
         const d = new Date(o.createdAt);
         const timeStr = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
         const itemsStr = (o.items || []).map(i => `${i.name} (${i.qty})`).join(', ');
+        const isVoided = o.status === 'voided';
+        const canVoid = o.status === 'completed';
 
         return `
-          <tr class="hover:bg-stone-50 transition-colors">
-            <td class="py-3 px-4 sm:px-6 font-mono font-bold text-[#2D1406]">${o.id}</td>
+          <tr class="hover:bg-stone-50 transition-colors ${isVoided ? 'opacity-60' : ''}">
+            <td class="py-3 px-4 sm:px-6 font-mono font-bold text-[#2D1406]">${o.id}
+              ${isVoided ? '<span class="ml-1 px-1.5 py-0.5 rounded text-[9px] font-black bg-rose-600 text-white">VOID</span>' : ''}
+            </td>
             <td class="py-3 px-4 text-stone-500">${timeStr}</td>
             <td class="py-3 px-4">
               <span class="font-bold capitalize">${o.orderType}</span> 
@@ -1916,9 +2004,99 @@
             <td class="py-3 px-4 max-w-xs truncate text-stone-700">${itemsStr}</td>
             <td class="py-3 px-4 uppercase font-bold text-[10px] text-stone-600">${o.paymentMethod}</td>
             <td class="py-3 px-4 text-right font-mono font-black text-bakery-orange">${formatRupiah(o.total)}</td>
+            <td class="py-3 px-4 text-center whitespace-nowrap">
+              ${canVoid ? `<button onclick="openVoidModal('${o.id}', ${o.total})" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-bold transition-colors" title="Void / batalkan order ini">Void</button>` : ''}
+              ${isVoided ? `<button onclick="viewVoidReceipt('${o.id}')" class="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 border border-stone-200 text-[10px] font-bold transition-colors" title="Lihat struk void">Struk</button>` : ''}
+            </td>
           </tr>
         `;
       }).join('');
+    }
+
+    // --- Void order: modal konfirmasi (alasan + PIN owner) ---
+    let voidTarget = null;
+    function openVoidModal(orderId, total) {
+      voidTarget = { id: orderId, total };
+      document.getElementById('void-order-id').textContent = orderId;
+      document.getElementById('void-order-total').textContent = formatRupiah(total);
+      document.getElementById('void-reason').value = '';
+      document.getElementById('void-pin').value = '';
+      document.getElementById('void-modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+    function closeVoidModal() {
+      document.getElementById('void-modal').classList.add('hidden');
+      voidTarget = null;
+    }
+    async function submitVoidOrder() {
+      if (!voidTarget) return;
+      const reason = document.getElementById('void-reason').value.trim();
+      const pin = document.getElementById('void-pin').value.trim();
+      if (!reason) { alert('Alasan void wajib diisi.'); return; }
+      if (!pin) { alert('PIN owner wajib diisi.'); return; }
+      if (!confirm(`Void order ${voidTarget.id} (${formatRupiah(voidTarget.total)})?\nJurnal penjualan & HPP akan dibalik otomatis, stok dikembalikan.\nAlasan: ${reason}`)) return;
+      try {
+        const res = await fetch('/api/orders/void', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order_id: voidTarget.id, owner_pin: pin, reason, voided_by: 'Owner' })
+        });
+        const data = await res.json();
+        if (!res.ok || data.success !== true) throw new Error(data.message || 'Gagal void');
+        closeVoidModal();
+        viewVoidReceipt(data.order.id, data);
+        loadAnalytics(); // refresh tabel riwayat
+      } catch (err) {
+        alert('Void gagal: ' + err.message);
+      }
+    }
+
+    // --- Struk void ---
+    async function viewVoidReceipt(orderId, voidData) {
+      const box = document.getElementById('void-receipt-body');
+      box.innerHTML = '<p class="py-6 text-center text-stone-400 text-xs">Memuat...</p>';
+      document.getElementById('void-receipt-modal').classList.remove('hidden');
+      try {
+        let order = voidData && voidData.order ? voidData.order : null;
+        if (!order) {
+          const res = await fetch('/api/pos/orders');
+          const data = await res.json();
+          order = (data.orders || []).find(o => o.id === orderId);
+        }
+        if (!order) throw new Error('Order tidak ditemukan');
+        const d = new Date(order.createdAt);
+        const timeStr = d.toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const itemsHtml = (order.items || []).map(i =>
+          `<div class="flex justify-between"><span>${escapeOwnerHtml(i.name)} x${i.qty}</span><span>${formatRupiah((i.price || 0) * (i.qty || 1))}</span></div>`
+        ).join('');
+        box.innerHTML = `
+          <div class="text-center pb-2 border-b border-dashed border-stone-400">
+            <div class="inline-block px-3 py-1 rounded-lg bg-rose-600 text-white text-sm font-black tracking-widest mb-1">VOID</div>
+            <div class="font-extrabold text-sm tracking-wider">CHEWY'S DESSERT</div>
+            <div class="text-[10px] text-stone-500">Struk Pembatalan Transaksi</div>
+          </div>
+          <div class="py-2 border-b border-dashed border-stone-400 text-[10px] space-y-0.5">
+            <div class="flex justify-between"><span>No: <strong>${escapeOwnerHtml(order.id)}</strong></span><span>${timeStr}</span></div>
+            <div class="flex justify-between"><span>Kasir: ${escapeOwnerHtml(order.cashier || '-')}</span><span class="uppercase">${escapeOwnerHtml(order.paymentMethod || '')}</span></div>
+          </div>
+          <div class="py-2 border-b border-dashed border-stone-400 text-[11px] space-y-1">${itemsHtml}</div>
+          <div class="py-2 border-b border-dashed border-stone-400 text-[11px] space-y-1">
+            <div class="flex justify-between"><span>Subtotal</span><span>${formatRupiah(order.subtotal)}</span></div>
+            ${order.discount > 0 ? `<div class="flex justify-between"><span>Diskon</span><span>- ${formatRupiah(order.discount)}</span></div>` : ''}
+            ${(order.taxAmount || order.tax) > 0 ? `<div class="flex justify-between"><span>Pajak</span><span>${formatRupiah(order.taxAmount || order.tax)}</span></div>` : ''}
+            ${order.serviceAmount > 0 ? `<div class="flex justify-between"><span>Service</span><span>${formatRupiah(order.serviceAmount)}</span></div>` : ''}
+            <div class="flex justify-between font-extrabold text-xs pt-1 border-t border-dashed border-stone-300"><span>TOTAL (DIBATALKAN)</span><span>${formatRupiah(order.total)}</span></div>
+          </div>
+          <div class="pt-2 text-[10px] text-stone-500 space-y-1">
+            <p>Jurnal penjualan & HPP order ini telah dibalik otomatis.${voidData && voidData.journalReversed ? '' : ' (jurnal tidak ditemukan / akuntansi belum aktif)'}</p>
+            <p>Stok menu & bahan baku telah dikembalikan.</p>
+          </div>`;
+      } catch (err) {
+        box.innerHTML = '<p class="py-6 text-center text-rose-600 text-xs">Gagal memuat struk: ' + escapeOwnerHtml(err.message) + '</p>';
+      }
+      lucide.createIcons();
+    }
+    function closeVoidReceiptModal() {
+      document.getElementById('void-receipt-modal').classList.add('hidden');
     }
 
     // Modal: Ubah Modal Bahan (HPP)
@@ -2031,6 +2209,7 @@
         viewAcct.classList.remove('hidden');
         topActions.classList.add('hidden');
         loadAccountingData();
+        loadPosSettings();
       } else if (view === 'po') {
         tabPO.className = TAB_ACTIVE;
         viewPO.classList.remove('hidden');
@@ -2253,6 +2432,50 @@
         '<i data-lucide="database-zap" class="w-8 h-8 text-amber-500"></i>' +
         '<p class="font-bold text-stone-600 text-xs mt-1">Fitur Akuntansi belum aktif di database.</p>' +
         '<p class="text-[11px] text-stone-400">Jalankan file <span class="font-mono font-bold">supabase-schema.sql</span> terbaru di Supabase SQL Editor, lalu klik tab ini lagi.</p></div>';
+    }
+
+    // --- Pengaturan pajak & service charge (POS) ---
+    async function loadPosSettings() {
+      const status = document.getElementById('pos-settings-status');
+      try {
+        const res = await fetch('/api/owner/settings');
+        const data = await res.json();
+        if (res.status === 503 || data.needsSchema) {
+          if (status) status.textContent = 'Skema settings belum di-apply — jalankan supabase-schema.sql bagian 11.';
+          return;
+        }
+        if (!res.ok || data.success !== true) throw new Error('api');
+        const s = data.settings || {};
+        document.getElementById('set-tax-label').value = s.tax_label || 'PB1';
+        document.getElementById('set-tax-rate').value = s.tax_rate !== undefined ? s.tax_rate : 10;
+        document.getElementById('set-service-label').value = s.service_label || 'Service Charge';
+        document.getElementById('set-service-rate').value = s.service_rate !== undefined ? s.service_rate : 0;
+        if (status) status.textContent = '';
+      } catch (err) {
+        if (status) status.textContent = 'Gagal memuat pengaturan.';
+      }
+    }
+
+    async function savePosSettings() {
+      const status = document.getElementById('pos-settings-status');
+      const payload = {
+        tax_label: document.getElementById('set-tax-label').value.trim() || 'PB1',
+        tax_rate: parseFloat(document.getElementById('set-tax-rate').value) || 0,
+        service_label: document.getElementById('set-service-label').value.trim() || 'Service Charge',
+        service_rate: parseFloat(document.getElementById('set-service-rate').value) || 0
+      };
+      try {
+        const res = await fetch('/api/owner/settings', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok || data.success !== true) throw new Error(data.message || 'Gagal menyimpan');
+        if (status) { status.textContent = '✓ Pengaturan tersimpan. Kasir POS akan memakai tarif baru.'; status.className = 'text-[11px] text-emerald-600 mt-2'; }
+        setTimeout(() => { if (status) { status.textContent = ''; status.className = 'text-[11px] text-stone-400 mt-2'; } }, 4000);
+      } catch (err) {
+        alert('Gagal menyimpan pengaturan: ' + err.message);
+      }
     }
 
     async function loadAccountingData() {

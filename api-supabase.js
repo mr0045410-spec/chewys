@@ -181,6 +181,10 @@
       id: r.id, createdAt: r.created_at, orderType: r.order_type,
       tableOrCustomer: r.table_or_customer, items: r.items,
       subtotal: r.subtotal, discount: r.discount, tax: r.tax, total: r.total,
+      discountType: r.discount_type || '', discountValue: Number(r.discount_value) || 0,
+      taxRate: Number(r.tax_rate) || 0,
+      taxAmount: (r.tax_amount === null || r.tax_amount === undefined) ? (Number(r.tax) || 0) : Number(r.tax_amount),
+      serviceRate: Number(r.service_rate) || 0, serviceAmount: Number(r.service_amount) || 0,
       paymentMethod: r.payment_method, cashPaid: r.cash_paid,
       cashChange: r.cash_change, paymentReference: r.payment_reference || '',
       cashier: r.cashier, status: r.status, shiftId: r.shift_id || null
@@ -190,7 +194,12 @@
     return {
       id: o.id, order_type: o.orderType, table_or_customer: o.tableOrCustomer,
       items: o.items, subtotal: o.subtotal, discount: o.discount, tax: o.tax,
-      total: o.total, payment_method: o.paymentMethod, cash_paid: o.cashPaid,
+      total: o.total,
+      discount_type: o.discountType || '', discount_value: Number(o.discountValue) || 0,
+      tax_rate: Number(o.taxRate) || 0,
+      tax_amount: (o.taxAmount === undefined || o.taxAmount === null) ? (Number(o.tax) || 0) : Number(o.taxAmount),
+      service_rate: Number(o.serviceRate) || 0, service_amount: Number(o.serviceAmount) || 0,
+      payment_method: o.paymentMethod, cash_paid: o.cashPaid,
       cash_change: o.cashChange, payment_reference: o.paymentReference || '',
       cashier: o.cashier, status: o.status, shift_id: o.shiftId || null
     };
@@ -382,7 +391,13 @@
         items: body.items,
         subtotal: Number(body.subtotal) || 0,
         discount: Number(body.discount) || 0,
-        tax: Number(body.tax) || 0,
+        discountType: body.discountType || '',
+        discountValue: Number(body.discountValue) || 0,
+        taxRate: Number(body.taxRate) || 0,
+        taxAmount: Number(body.taxAmount) || Number(body.tax) || 0,
+        tax: Number(body.taxAmount) || Number(body.tax) || 0, // kolom lama = tax_amount (kompatibel)
+        serviceRate: Number(body.serviceRate) || 0,
+        serviceAmount: Number(body.serviceAmount) || 0,
         total: Number(body.total) || 0,
         paymentMethod: body.paymentMethod || 'cash',
         cashPaid: Number(body.cashPaid) || Number(body.total) || 0,
@@ -409,6 +424,14 @@
         // checkout lama tetap jalan; fitur shift butuh skema baru.
         return ordersHasShiftId().then(function (has) {
           if (!has) delete row.shift_id;
+          return ordersHasExtCols();
+        }).then(function (hasExt) {
+          // Kolom discount_type dkk mungkin belum ada (skema lama) -> strip agar
+          // checkout lama tetap jalan; diskon/pajak butuh skema bagian 11.
+          if (!hasExt) {
+            ['discount_type', 'discount_value', 'tax_rate', 'tax_amount', 'service_rate', 'service_amount']
+              .forEach(function (c) { delete row[c]; });
+          }
           return ins('orders', [row]);
         });
       }).then(function () {
@@ -487,7 +510,7 @@
     return sel('orders', 'select=*&created_at=gte.' + encodeURIComponent(jakartaDayStartUTCISO()) + '&order=created_at.desc')
       .then(function (rows) {
         var todayOrders = rows.map(rowToOrder).filter(function (o) {
-          return o.createdAt && getJakartaDateStr(new Date(o.createdAt)) === todayDate;
+          return o.createdAt && getJakartaDateStr(new Date(o.createdAt)) === todayDate && o.status !== 'voided';
         });
         var totalRevenueToday = todayOrders.reduce(function (s, o) { return s + (o.total || 0); }, 0);
         var paymentBreakdown = {
@@ -543,6 +566,8 @@
       var filteredOrders = allOrders.filter(function (o) {
         return o.createdAt && new Date(o.createdAt) >= startDate;
       });
+      // Order void tidak masuk hitungan omset/laba (tetap tampil di recentOrders).
+      var validOrders = filteredOrders.filter(function (o) { return o.status !== 'voided'; });
 
       var itemCostMap = {}, itemCategoryMap = {};
       res[1].forEach(function (m) {
@@ -570,6 +595,7 @@
       var itemPerformanceMap = {};
 
       filteredOrders.forEach(function (o) {
+        if (o.status === 'voided') return; // order batal: tampil di riwayat, tidak masuk omset
         var orderDate = new Date(o.createdAt);
         var dateKey = orderDate.toISOString().slice(0, 10);
         var hourKey = pad2(orderDate.getHours()) + ':00';
@@ -612,8 +638,8 @@
         analytics: {
           range: range, totalRevenue: totalRevenue, totalCost: totalCost, totalProfit: totalProfit,
           profitMarginPercent: totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0,
-          totalOrders: filteredOrders.length,
-          avgOrderValue: filteredOrders.length > 0 ? Math.round(totalRevenue / filteredOrders.length) : 0,
+          totalOrders: validOrders.length,
+          avgOrderValue: validOrders.length > 0 ? Math.round(totalRevenue / validOrders.length) : 0,
           totalItemsSold: totalItemsSold, paymentStats: paymentStats,
           timeline: Object.keys(dateTrendMap).map(function (k) { return dateTrendMap[k]; })
             .sort(function (a, b) { return a.date < b.date ? -1 : 1; }),
@@ -1025,6 +1051,41 @@
     });
   }
 
+  /* Probe tabel settings (section 11 skema). Cache seperti probe lain. */
+  var _hasSettings = null;
+  function settingsReady() {
+    if (_hasSettings !== null) return Promise.resolve(_hasSettings);
+    return sel('settings', 'select=key&limit=1').then(function () {
+      _hasSettings = true;
+      return true;
+    }).catch(function (e) {
+      _hasSettings = !/settings/i.test(String((e && e.message) || ''));
+      return _hasSettings;
+    });
+  }
+  function needSettings() {
+    return settingsReady().then(function (ready) {
+      if (ready) return null;
+      return json({
+        success: false, needsSchema: true,
+        message: 'Skema settings (bagian 11) belum di-apply. Buka Supabase SQL Editor → paste SELURUH supabase-schema.sql → Run, lalu coba lagi.'
+      }, 503);
+    });
+  }
+
+  /* Probe kolom baru orders (discount_type dkk, section 11). */
+  var _hasOrderExt = null;
+  function ordersHasExtCols() {
+    if (_hasOrderExt !== null) return Promise.resolve(_hasOrderExt);
+    return sel('orders', 'select=discount_type&limit=1').then(function () {
+      _hasOrderExt = true;
+      return true;
+    }).catch(function (e) {
+      _hasOrderExt = !/discount_type/i.test(String((e && e.message) || ''));
+      return _hasOrderExt;
+    });
+  }
+
   function rowToAccount(r) {
     return { code: r.code, name: r.name, type: r.type || 'aset', normal: r.normal || 'debit', active: r.active !== false };
   }
@@ -1131,13 +1192,44 @@
     });
   }
 
-  // --- Jurnal otomatis: penjualan (2 jurnal: kas/piutang vs pendapatan, HPP vs persediaan) ---
+  /* ================================================================== */
+  /* KEPUTUSAN AKUNTANSI — metode BRUTO (bukan netto):                      */
+  /* Pendapatan dicatat sebesar nilai BRUTO di 4100; potongan dicatat       */
+  /* terpisah sebagai contra-revenue di 4110 "Potongan Penjualan"           */
+  /* (tipe pendapatan, saldo normal debit). Alasan: omset kotor tetap       */
+  /* terlihat di laporan (penting untuk evaluasi promo/diskon), dan P&L     */
+  /* otomatis menghitung pendapatan NETTO karena agregator memakai          */
+  /* (kredit - debit) per akun bertipe pendapatan.                         */
+  /* Pajak PB1 BUKAN pendapatan resto -> kewajiban di 2120 "Utang Pajak"    */
+  /* (disetor ke pemerintah). Service charge ADALAH pendapatan resto       */
+  /* -> 4200 "Pendapatan Service Charge".                                  */
+  /* Rumus kasir: total = subtotal - diskon + pajak + service.             */
+  /* Jurnal selalu balance: Dr(total + diskon) = Kr(subtotal + pajak +      */
+  /* service). Baris bernilai 0 dilewati agar jurnal tetap ringkas.        */
+  /* Dipakai oleh: autoJournalSale, backfill, dan (terbalik) void.          */
+  /* ================================================================== */
+  function buildSaleJournalLines(o) {
+    var subtotal = Math.round(Number(o.subtotal) || 0);
+    var discount = Math.round(Number(o.discount) || 0);
+    var taxAmt = Math.round(Number(
+      (o.tax_amount === undefined || o.tax_amount === null) ? o.tax : o.tax_amount
+    ) || 0);
+    var svcAmt = Math.round(Number(o.service_amount) || 0);
+    var total = Math.round(Number(o.total) || 0);
+    var pm = String(o.payment_method || 'cash').toLowerCase();
+    var cashCode = pm === 'cash' ? '1100' : '1120'; // tunai -> Kas, QRIS/EDC -> Kas Bank
+    var lines = [{ account_code: cashCode, debit: total, kredit: 0 }];
+    if (discount > 0) lines.push({ account_code: '4110', debit: discount, kredit: 0 });
+    lines.push({ account_code: '4100', debit: 0, kredit: subtotal });
+    if (taxAmt > 0) lines.push({ account_code: '2120', debit: 0, kredit: taxAmt });
+    if (svcAmt > 0) lines.push({ account_code: '4200', debit: 0, kredit: svcAmt });
+    return lines;
+  }
+
+  // --- Jurnal otomatis: penjualan (2 jurnal: kas/bank vs pendapatan+utang pajak, HPP vs persediaan) ---
   function autoJournalSale(orderRow, items) {
     return accountingReady().then(function (ready) {
       if (!ready) return null;
-      var total = Math.round(Number(orderRow.total) || 0);
-      var pm = String(orderRow.payment_method || 'cash').toLowerCase();
-      var cashCode = pm === 'cash' ? '1100' : '1120'; // tunai -> Kas, QRIS/EDC -> Kas Bank
       var entryDate = orderRow.created_at || new Date().toISOString();
       var ids = (items || []).map(function (i) { return i.id; }).filter(Boolean);
       var costLookup = ids.length
@@ -1152,10 +1244,7 @@
         return postJournalEntry({
           entry_date: entryDate, description: 'Penjualan ' + orderRow.id,
           ref_type: 'sale', ref_id: orderRow.id,
-          lines: [
-            { account_code: cashCode, debit: total, kredit: 0 },
-            { account_code: '4100', debit: 0, kredit: total }
-          ]
+          lines: buildSaleJournalLines(orderRow)
         }).then(function () {
           return postJournalEntry({
             entry_date: entryDate, description: 'HPP ' + orderRow.id,
@@ -1406,8 +1495,8 @@
         existing.forEach(function (e) { if (e.ref_id) seen[e.ref_type + '|' + e.ref_id] = true; });
         var created = 0;
         var jobs = []; // fungsi lazy -> dijalankan sekuensial
-        var stepOrders = sel('orders', 'select=id,total,payment_method,created_at,items&limit=2000').then(function (orders) {
-          var missing = orders.filter(function (o) { return !seen['sale|' + o.id]; });
+        var stepOrders = sel('orders', 'select=id,total,subtotal,discount,tax,payment_method,created_at,items,status&limit=2000').then(function (orders) {
+          var missing = orders.filter(function (o) { return o.status !== 'voided' && !seen['sale|' + o.id]; });
           if (!missing.length) return null;
           var menuIds = {};
           missing.forEach(function (o) { (o.items || []).forEach(function (it) { if (it.id) menuIds[it.id] = true; }); });
@@ -1431,7 +1520,7 @@
                 return postJournalEntry({
                   entry_date: ed, description: 'Penjualan ' + o.id + ' (backfill)',
                   ref_type: 'sale', ref_id: o.id,
-                  lines: [{ account_code: cashCode, debit: total, kredit: 0 }, { account_code: '4100', debit: 0, kredit: total }]
+                  lines: buildSaleJournalLines(o) // bruto: konsisten dgn autoJournalSale
                 }).then(function () {
                   return postJournalEntry({
                     entry_date: ed, description: 'HPP ' + o.id + ' (backfill)',
@@ -1715,6 +1804,210 @@
         return upd('purchase_orders', 'id=eq.' + encodeURIComponent(body.id), { status: 'cancelled' }).then(function (u) {
           return ok({ success: true, po: rowToPO(u[0]) });
         });
+      });
+    }).catch(serverError);
+  };
+
+  /* ================================================================== */
+  /* Settings (pajak/service) + Void order                                */
+  /* ================================================================== */
+
+  // Upsert satu key settings (seed di skema menjamin baris ada; fallback insert bila belum).
+  function upsertSetting(key, value) {
+    var patch = { value: String(value), updated_at: new Date().toISOString() };
+    return upd('settings', 'key=eq.' + encodeURIComponent(key), patch).then(function (rows) {
+      if (rows && rows.length) return rows[0];
+      return ins('settings', [{ key: key, value: String(value) }]).then(function (r2) { return r2[0]; });
+    });
+  }
+
+  // 42. GET /api/owner/settings — tarif & label pajak/service (+ owner_pin TIDAK disertakan)
+  routes['GET /api/owner/settings'] = function () {
+    return needSettings().then(function (blocked) {
+      if (blocked) return blocked;
+      return sel('settings', 'select=key,value').then(function (rows) {
+        var out = {};
+        rows.forEach(function (r) {
+          if (r.key === 'owner_pin') return; // PIN tidak boleh bocor ke frontend
+          out[r.key] = r.value;
+        });
+        return ok({ success: true, settings: out });
+      });
+    }).catch(serverError);
+  };
+
+  // 43. PUT /api/owner/settings — { tax_rate, service_rate, tax_label, service_label }
+  //     owner_pin SENGAJA tidak bisa diubah lewat route ini.
+  routes['PUT /api/owner/settings'] = function (body) {
+    return needSettings().then(function (blocked) {
+      if (blocked) return blocked;
+      var ops = [];
+      if (body.tax_rate !== undefined) {
+        var tr = Number(body.tax_rate);
+        if (!(tr >= 0 && tr <= 100)) return bad({ success: false, message: 'Tarif pajak harus antara 0-100' });
+        ops.push(upsertSetting('tax_rate', tr));
+      }
+      if (body.service_rate !== undefined) {
+        var sr = Number(body.service_rate);
+        if (!(sr >= 0 && sr <= 100)) return bad({ success: false, message: 'Tarif service harus antara 0-100' });
+        ops.push(upsertSetting('service_rate', sr));
+      }
+      if (body.tax_label !== undefined) ops.push(upsertSetting('tax_label', String(body.tax_label).slice(0, 30)));
+      if (body.service_label !== undefined) ops.push(upsertSetting('service_label', String(body.service_label).slice(0, 30)));
+      return Promise.all(ops).then(function () {
+        return sel('settings', 'select=key,value');
+      }).then(function (rows) {
+        var out = {};
+        rows.forEach(function (r) { if (r.key !== 'owner_pin') out[r.key] = r.value; });
+        return ok({ success: true, settings: out });
+      });
+    }).catch(serverError);
+  };
+
+  // --- Jurnal reversal untuk void: balikkan debit<->kredit jurnal sale + HPP asli order.
+  // Non-fatal & idempotent (cek jurnal void yang sudah ada).
+  function tryVoidReversal(o) {
+    return accountingReady().then(function (ready) {
+      if (!ready) return null;
+      var orderId = o.id;
+      return sel('journal_entries', 'select=id&ref_type=eq.void&ref_id=eq.' + encodeURIComponent(orderId))
+        .then(function (existing) {
+          if (existing.length) return 'sudah-ada';
+          return sel('journal_entries',
+            'select=id,ref_id&ref_type=eq.sale&ref_id=in.(' +
+            [orderId, orderId + ':hpp'].map(encodeURIComponent).join(',') + ')');
+        }).then(function (entries) {
+          if (!entries || entries === 'sudah-ada' || !entries.length) return entries;
+          var ids = entries.map(function (e) { return e.id; });
+          return fetchJournalLinesForEntries(ids).then(function (lines) {
+            var byEntry = {};
+            lines.forEach(function (l) { (byEntry[l.entry_id] = byEntry[l.entry_id] || []).push(l); });
+            var jobs = entries.map(function (e) {
+              var rev = (byEntry[e.id] || []).map(function (l) {
+                return { account_code: l.account_code, debit: Number(l.kredit) || 0, kredit: Number(l.debit) || 0 };
+              }).filter(function (l) { return l.debit > 0 || l.kredit > 0; });
+              if (!rev.length) return null;
+              var isHpp = String(e.ref_id).slice(-4) === ':hpp';
+              return postJournalEntry({
+                description: 'Void ' + orderId + (isHpp ? ' (reversal HPP)' : ' (reversal penjualan)'),
+                ref_type: 'void', ref_id: e.ref_id,
+                lines: rev
+              });
+            }).filter(Boolean);
+            return Promise.all(jobs).then(function () { return true; });
+          });
+        });
+    });
+  }
+
+  // --- Kembalikan stok menu + bahan baku (via BOM) untuk order yang di-void.
+  // Log stok bertipe 'OUT_VOID' dengan change_qty POSITIF (restorasi).
+  function restoreStockForVoid(o) {
+    var items = o.items || [];
+    var ids = items.map(function (i) { return i.id; }).filter(Boolean);
+    if (!ids.length) return Promise.resolve({ menus: 0, ingredients: 0 });
+    var menuRestore = sel('menu_items', 'select=id,stock_qty&id=in.(' + ids.map(encodeURIComponent).join(',') + ')')
+      .then(function (menuRows) {
+        var m = {};
+        menuRows.forEach(function (x) { m[x.id] = Number(x.stock_qty) || 0; });
+        var ops = items.map(function (it) {
+          var nb = (m[it.id] === undefined ? 25 : m[it.id]) + (Number(it.qty) || 1);
+          return upd('menu_items', 'id=eq.' + encodeURIComponent(it.id),
+            { stock_qty: nb, in_stock: nb > 0, updated_at: new Date().toISOString() });
+        });
+        return Promise.all(ops).then(function () { return ids.length; });
+      });
+    var ingRestore = sel('recipes', 'select=menu_id,items&menu_id=in.(' + ids.map(encodeURIComponent).join(',') + ')')
+      .then(function (recipeRows) {
+        var recipeMap = {};
+        recipeRows.forEach(function (r) { recipeMap[r.menu_id] = r.items || []; });
+        var needIds = {};
+        items.forEach(function (oi) { (recipeMap[oi.id] || []).forEach(function (rec) { needIds[rec.ingredientId] = true; }); });
+        var ingIds = Object.keys(needIds);
+        if (!ingIds.length) return 0;
+        return sel('ingredients', 'select=*&id=in.(' + ingIds.map(encodeURIComponent).join(',') + ')')
+          .then(function (ingRows) {
+            var ingMap = {};
+            ingRows.forEach(function (g) { ingMap[g.id] = g; });
+            var ops = [], logs = [], restored = 0;
+            items.forEach(function (orderItem) {
+              var qtyVoid = Number(orderItem.qty) || 1;
+              (recipeMap[orderItem.id] || []).forEach(function (rec) {
+                var ing = ingMap[rec.ingredientId];
+                if (!ing) return;
+                var back = (Number(rec.amount) || 0) * qtyVoid;
+                var nb = Math.round(((Number(ing.current_stock) || 0) + back) * 1000) / 1000;
+                ing.current_stock = nb;
+                ops.push(upd('ingredients', 'id=eq.' + encodeURIComponent(ing.id), { current_stock: nb }));
+                logs.push({
+                  id: uid('log'), ingredient_id: ing.id, ingredient_name: ing.name,
+                  type: 'OUT_VOID', change_qty: back, balance_qty: nb,
+                  unit: ing.unit, reference: 'VOID ' + o.id,
+                  note: 'Void ' + o.id + ': stok dikembalikan (' + (orderItem.name || orderItem.id) + ' x' + qtyVoid + ')'
+                });
+                restored++;
+              });
+            });
+            return Promise.all(ops).then(function () {
+              return logs.length ? ins('stock_logs', logs) : null;
+            }).then(function () { return restored; });
+          });
+      });
+    return Promise.all([menuRestore, ingRestore]).then(function (r) {
+      return { menus: r[0] || 0, ingredients: r[1] || 0 };
+    });
+  }
+
+  function doVoidOrder(body) {
+    var orderId = body.order_id;
+    var reason = String(body.reason || '').slice(0, 200);
+    var voidedBy = String(body.voided_by || 'Owner').slice(0, 60);
+    return sel('orders', 'select=*&id=eq.' + encodeURIComponent(orderId)).then(function (orows) {
+      if (!orows.length) return notFound({ success: false, message: 'Order tidak ditemukan' });
+      var o = orows[0];
+      if (o.status !== 'completed') {
+        return bad({ success: false, message: 'Order tidak bisa di-void (status: ' + (o.status || '-') + '). Hanya order completed yang bisa di-void, dan tidak bisa 2x.' });
+      }
+      var reversalP = tryVoidReversal(o).catch(function (e) {
+        console.error('[api-supabase] reversal void gagal:', e && e.message);
+        return null;
+      });
+      var restoreP = restoreStockForVoid(o).catch(function (e) {
+        console.error('[api-supabase] restore stok void gagal:', e && e.message);
+        return null;
+      });
+      return Promise.all([reversalP, restoreP]).then(function (res) {
+        return ins('void_logs', [{ id: uid('void'), order_id: orderId, reason: reason, voided_by: voidedBy }])
+          .then(function () {
+            return upd('orders', 'id=eq.' + encodeURIComponent(orderId), { status: 'voided' });
+          })
+          .then(function (u) {
+            var updated = (u && u[0]) || Object.assign({}, o, { status: 'voided' });
+            return ok({
+              success: true,
+              order: rowToOrder(updated),
+              journalReversed: !!res[0],
+              stockRestored: res[1]
+            });
+          });
+      });
+    });
+  }
+
+  // 44. POST /api/orders/void — { order_id, owner_pin, reason, voided_by }
+  //     Hanya order completed; butuh PIN owner (disamakan dgn settings.owner_pin).
+  //     Efek: status -> voided, jurnal reversal otomatis, stok dikembalikan,
+  //     tercatat di void_logs. Tidak bisa void 2x.
+  routes['POST /api/orders/void'] = function (body) {
+    return needSettings().then(function (blocked) {
+      if (blocked) return blocked;
+      if (!body.order_id) return bad({ success: false, message: 'ID order wajib diisi' });
+      return sel('settings', 'select=value&key=eq.owner_pin').then(function (sr) {
+        var expectedPin = sr.length ? String(sr[0].value || '') : '1234';
+        if (String(body.owner_pin || '') !== expectedPin) {
+          return json({ success: false, message: 'PIN owner salah' }, 403);
+        }
+        return doVoidOrder(body);
       });
     }).catch(serverError);
   };

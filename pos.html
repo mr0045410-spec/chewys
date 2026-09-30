@@ -232,26 +232,40 @@
             <span id="bill-subtotal" class="font-mono">Rp 0</span>
           </div>
 
-          <!-- Discount row with selector -->
-          <div class="flex items-center justify-between text-stone-500">
-            <div class="flex items-center gap-1">
-              <span>Diskon</span>
-              <select id="discount-select" onchange="calculateCartTotal()" class="text-[11px] font-bold text-bakery-orange bg-orange-50 border border-orange-200 rounded-md px-1.5 py-0.5 focus:outline-none">
-                <option value="0">0%</option>
-                <option value="0.05">5%</option>
-                <option value="0.10">10%</option>
-                <option value="0.15">15%</option>
-                <option value="0.20">20%</option>
-              </select>
+          <!-- Discount: persen ATAU nominal (nominal menang bila diisi > 0) -->
+          <div class="text-stone-500">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1">
+                <span>Diskon</span>
+                <select id="discount-select" onchange="document.getElementById('discount-nominal').value='';calculateCartTotal()" class="text-[11px] font-bold text-bakery-orange bg-orange-50 border border-orange-200 rounded-md px-1.5 py-0.5 focus:outline-none">
+                  <option value="0">0%</option>
+                  <option value="0.05">5%</option>
+                  <option value="0.10">10%</option>
+                  <option value="0.15">15%</option>
+                  <option value="0.20">20%</option>
+                </select>
+                <span class="text-[10px] text-stone-400">atau Rp</span>
+                <input id="discount-nominal" type="number" min="0" placeholder="0" oninput="calculateCartTotal()" class="w-20 text-[11px] font-bold text-bakery-orange bg-orange-50 border border-orange-200 rounded-md px-1.5 py-0.5 focus:outline-none font-mono" />
+              </div>
+              <span id="bill-discount" class="font-mono text-emerald-600">- Rp 0</span>
             </div>
-            <span id="bill-discount" class="font-mono text-emerald-600">- Rp 0</span>
+          </div>
+
+          <!-- Pajak & Service Charge (tarif dari Pengaturan Owner) -->
+          <div class="flex justify-between text-stone-500 font-medium" id="bill-tax-row">
+            <span id="bill-tax-label">PB1 (10%)</span>
+            <span id="bill-tax" class="font-mono">Rp 0</span>
+          </div>
+          <div class="flex justify-between text-stone-500 font-medium" id="bill-service-row">
+            <span id="bill-service-label">Service Charge (0%)</span>
+            <span id="bill-service" class="font-mono">Rp 0</span>
           </div>
 
           <!-- Total Due -->
           <div class="flex justify-between items-baseline pt-2 border-t border-dashed border-stone-200">
             <div>
               <span class="text-sm font-extrabold text-[#2D1406]">Total Tagihan</span>
-              <p class="text-[10px] text-stone-400">Termasuk pajak resto</p>
+              <p class="text-[10px] text-stone-400">Pajak & service sesuai pengaturan</p>
             </div>
             <span id="bill-total" class="text-xl sm:text-2xl font-black text-bakery-orange font-mono">Rp 0</span>
           </div>
@@ -644,8 +658,32 @@
       } catch (err) {
         console.error('Failed to load menu for POS:', err);
       }
+      await loadPosSettings(); // tarif pajak & service (non-fatal)
       lucide.createIcons();
       await checkShiftStatus();
+    }
+
+    // Pengaturan pajak & service charge dari server (default: PB1 10%, service 0%).
+    // Non-fatal: kalau API/skema belum ada, pakai default lokal.
+    let posSettings = { tax_rate: 10, service_rate: 0, tax_label: 'PB1', service_label: 'Service Charge' };
+    async function loadPosSettings() {
+      try {
+        const res = await fetch('/api/owner/settings');
+        const data = await res.json();
+        if (res.ok && data.success && data.settings) {
+          const s = data.settings;
+          posSettings.tax_rate = parseFloat(s.tax_rate) || 0;
+          posSettings.service_rate = parseFloat(s.service_rate) || 0;
+          posSettings.tax_label = s.tax_label || 'PB1';
+          posSettings.service_label = s.service_label || 'Service Charge';
+        }
+      } catch (err) {
+        console.warn('Gagal memuat pengaturan pajak, pakai default:', err.message);
+      }
+      const tl = document.getElementById('bill-tax-label');
+      const sl = document.getElementById('bill-service-label');
+      if (tl) tl.textContent = `${posSettings.tax_label} (${posSettings.tax_rate}%)`;
+      if (sl) sl.textContent = `${posSettings.service_label} (${posSettings.service_rate}%)`;
     }
 
     // =========================================================================
@@ -1156,22 +1194,42 @@
     }
 
     // Calculate totals
+    // Urutan: subtotal -> diskon (nominal menang bila > 0, kalau tidak pakai %) ->
+    // pajak & service dihitung dari (subtotal - diskon) -> total.
     function calculateCartTotal() {
       const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
       const discountSelect = document.getElementById('discount-select');
-      discountRate = parseFloat(discountSelect ? discountSelect.value : 0) || 0;
-      const discountAmount = Math.round(subtotal * discountRate);
-      const grandTotal = Math.max(0, subtotal - discountAmount);
+      const discountNominalEl = document.getElementById('discount-nominal');
+      const nominalVal = Math.max(0, parseInt(discountNominalEl ? discountNominalEl.value : 0, 10) || 0);
+      let discountAmount = 0, discountType = '', discountValue = 0;
+      if (nominalVal > 0) {
+        discountAmount = Math.min(nominalVal, subtotal);
+        discountType = 'nominal'; discountValue = nominalVal;
+      } else {
+        discountRate = parseFloat(discountSelect ? discountSelect.value : 0) || 0;
+        discountAmount = Math.round(subtotal * discountRate);
+        if (discountRate > 0) { discountType = 'percent'; discountValue = Math.round(discountRate * 100); }
+      }
+      const taxable = Math.max(0, subtotal - discountAmount);
+      const taxRate = posSettings.tax_rate || 0;
+      const serviceRate = posSettings.service_rate || 0;
+      const taxAmount = Math.round(taxable * taxRate / 100);
+      const serviceAmount = Math.round(taxable * serviceRate / 100);
+      const grandTotal = taxable + taxAmount + serviceAmount;
 
       document.getElementById('bill-subtotal').textContent = formatRupiah(subtotal);
       document.getElementById('bill-discount').textContent = `- ${formatRupiah(discountAmount)}`;
+      const taxEl = document.getElementById('bill-tax');
+      const svcEl = document.getElementById('bill-service');
+      if (taxEl) taxEl.textContent = formatRupiah(taxAmount);
+      if (svcEl) svcEl.textContent = formatRupiah(serviceAmount);
       document.getElementById('bill-total').textContent = formatRupiah(grandTotal);
       document.getElementById('btn-checkout-label').textContent = `Bayar Sekarang (${formatRupiah(grandTotal)})`;
 
       const btnCheckout = document.getElementById('btn-checkout');
       btnCheckout.disabled = cart.length === 0;
 
-      return { subtotal, discountAmount, grandTotal };
+      return { subtotal, discountAmount, discountType, discountValue, taxRate, taxAmount, serviceRate, serviceAmount, grandTotal };
     }
 
     // Toggle Mobile Cart Drawer
@@ -1282,7 +1340,7 @@
     // SUBMIT TRANSACTION TO API
     // =========================================================================
     async function submitTransaction() {
-      const { subtotal, discountAmount, grandTotal } = calculateCartTotal();
+      const { subtotal, discountAmount, discountType, discountValue, taxRate, taxAmount, serviceRate, serviceAmount, grandTotal } = calculateCartTotal();
       const tableOrCustomer = document.getElementById('order-table-customer').value.trim();
 
       // Check cash sufficiency
@@ -1313,7 +1371,10 @@
         })),
         subtotal,
         discount: discountAmount,
-        tax: 0,
+        discountType, discountValue,
+        taxRate, taxAmount,
+        tax: taxAmount,
+        serviceRate, serviceAmount,
         total: grandTotal,
         paymentMethod: selectedPayment,
         cashPaid: selectedPayment === 'cash' ? currentCashReceived : grandTotal,
@@ -1412,6 +1473,18 @@
               <span>- ${formatRupiah(order.discount)}</span>
             </div>
           ` : ''}
+          ${(order.taxAmount || order.tax) > 0 ? `
+            <div class="flex justify-between text-stone-600">
+              <span>${posSettings.tax_label}${order.taxRate ? ` (${order.taxRate}%)` : ''}</span>
+              <span>${formatRupiah(order.taxAmount || order.tax)}</span>
+            </div>
+          ` : ''}
+          ${order.serviceAmount > 0 ? `
+            <div class="flex justify-between text-stone-600">
+              <span>${posSettings.service_label}${order.serviceRate ? ` (${order.serviceRate}%)` : ''}</span>
+              <span>${formatRupiah(order.serviceAmount)}</span>
+            </div>
+          ` : ''}
           <div class="flex justify-between font-extrabold text-xs pt-1 border-t border-dashed border-stone-300">
             <span>TOTAL</span>
             <span>${formatRupiah(order.total)}</span>
@@ -1458,7 +1531,9 @@
 
       msg += `--------------------------------\n`;
       msg += `*Subtotal:* ${formatRupiah(o.subtotal)}\n`;
-      if (o.discount > 0) msg += `*Diskon:* -${formatRupiah(o.discount)}\n`;
+      if (o.discount > 0) msg += `*Diskon:* -${formatRupiah(o.discount)}` + "\n";
+      if ((o.taxAmount || o.tax) > 0) msg += `*${posSettings.tax_label}${o.taxRate ? ` (${o.taxRate}%)` : ''}:* ${formatRupiah(o.taxAmount || o.tax)}` + "\n";
+      if (o.serviceAmount > 0) msg += `*${posSettings.service_label}${o.serviceRate ? ` (${o.serviceRate}%)` : ''}:* ${formatRupiah(o.serviceAmount)}` + "\n";
       msg += `*TOTAL BAYAR:* ${formatRupiah(o.total)}\n`;
       msg += `*Metode:* ${o.paymentMethod.toUpperCase()} (${formatRupiah(o.cashPaid)})\n`;
       if (o.paymentMethod === 'cash') msg += `*Kembalian:* ${formatRupiah(o.cashChange)}\n`;
@@ -1481,6 +1556,8 @@
       discountRate = 0;
       var _ds = document.getElementById('discount-select');
       if (_ds) _ds.value = '0';
+      var _dn = document.getElementById('discount-nominal');
+      if (_dn) _dn.value = '';
       document.getElementById('receipt-modal').classList.add('hidden');
       renderCart();
       renderProducts();
