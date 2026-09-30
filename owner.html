@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+  <script src="brand-config.js"></script>
   <script src="api-supabase.js"></script>
   <!-- api-shim: ganti /api/* dgn localStorage (perbaikan persistensi utk hosting statis) -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Owner Dashboard · Chewy's Dessert & Coffee</title>
+  <title data-brand-page="owner">Owner Dashboard · Chewy's Dessert & Coffee</title>
   <link rel="icon" type="image/png" href="./assets/logo-chewys-orange.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -16,10 +17,10 @@
       theme: {
         extend: {
           colors: {
-            'bakery-orange': '#FE6134',
-            'bakery-orange-hover': '#e34e23',
-            'bakery-cream': '#F7F6E2',
-            'chocolate-dark': '#2D1406'
+            'bakery-orange': (window.BRAND && BRAND.primaryColor) || '#FE6134',
+            'bakery-orange-hover': (window.BRAND && BRAND.primaryColorHover) || '#e34e23',
+            'bakery-cream': (window.BRAND && BRAND.creamColor) || '#F7F6E2',
+            'chocolate-dark': (window.BRAND && BRAND.darkColor) || '#2D1406'
           }
         }
       }
@@ -98,7 +99,7 @@
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <a href="/" class="flex items-center gap-2">
-            <img src="./assets/logo-chewys-orange.png" alt="Chewy's" class="h-7 sm:h-8 object-contain">
+            <img data-brand-logo src="./assets/logo-chewys-orange.png" alt="Chewy's" class="h-7 sm:h-8 object-contain">
           </a>
           <span class="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[11px] uppercase tracking-wider px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
             <i data-lucide="crown" class="w-3.5 h-3.5 text-amber-700"></i>
@@ -125,7 +126,7 @@
         </div>
 
         <!-- Download Excel (.XLSX) Button with Formatting & Borders -->
-        <a href="/api/owner/export-excel" download="laporan-penjualan-chewys.xlsx" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors">
+        <a href="/api/owner/export-excel" data-brand-excel download="laporan-penjualan-chewys.xlsx" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors">
           <i data-lucide="sheet" class="w-3.5 h-3.5"></i>
           <span class="hidden sm:inline">Download Excel (.XLSX)</span>
           <span class="sm:hidden">Excel</span>
@@ -174,25 +175,25 @@
 
     <!-- PRIMARY OWNER NAVIGATION TABS -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-stone-200">
-      <div class="flex items-center gap-2">
-        <button onclick="switchOwnerView('finance')" id="view-tab-finance" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-[#2D1406] text-white shadow-xs transition-all">
+      <div class="flex items-center gap-2 overflow-x-auto min-w-0">
+        <button onclick="switchOwnerView('finance')" id="view-tab-finance" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-[#2D1406] text-white shadow-xs transition-all">
           <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
           <span>Laporan Keuangan & Omset</span>
         </button>
-        <button onclick="switchOwnerView('inventory')" id="view-tab-inventory" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all">
+        <button onclick="switchOwnerView('inventory')" id="view-tab-inventory" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all">
           <i data-lucide="wheat" class="w-4 h-4 text-bakery-orange"></i>
           <span>Stok Bahan Baku & Resep (BOM)</span>
           <span id="tab-inventory-alert-badge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white animate-pulse">0 Alert</span>
         </button>
-        <button onclick="switchOwnerView('staff')" id="view-tab-staff" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all">
+        <button onclick="switchOwnerView('staff')" id="view-tab-staff" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all">
           <i data-lucide="users" class="w-4 h-4 text-bakery-orange"></i>
           <span>Pegawai & Shift</span>
         </button>
-        <button onclick="switchOwnerView('accounting')" id="view-tab-accounting" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all">
+        <button onclick="switchOwnerView('accounting')" id="view-tab-accounting" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all">
           <i data-lucide="calculator" class="w-4 h-4 text-bakery-orange"></i>
           <span>Akuntansi</span>
         </button>
-        <button onclick="switchOwnerView('po')" id="view-tab-po" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all">
+        <button onclick="switchOwnerView('po')" id="view-tab-po" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all">
           <i data-lucide="shopping-cart" class="w-4 h-4 text-bakery-orange"></i>
           <span>Purchase Order</span>
         </button>
@@ -347,7 +348,7 @@
         <div>
           <div class="flex items-center gap-2 text-amber-400 font-bold text-xs mb-2">
             <i data-lucide="sparkles" class="w-4 h-4"></i>
-            <span>INSIGHT BISNIS CHEWY'S</span>
+            <span data-brand-text="insightLabel">INSIGHT BISNIS CHEWY'S</span>
           </div>
           <h4 class="text-base font-extrabold leading-snug">Evaluasi Performa Dapur</h4>
           <p class="text-xs text-stone-300 mt-2 leading-relaxed">
@@ -1396,7 +1397,7 @@
       <div class="flex items-center justify-between pb-4 border-b border-stone-100 shrink-0">
         <div class="flex items-center gap-3">
           <div class="relative w-12 h-12 shrink-0">
-            <img id="recipe-modal-menu-img" src="./assets/logo-chewys-orange.png" class="w-12 h-12 rounded-2xl object-cover border border-stone-200" alt="Menu" onerror="this.src='./assets/logo-chewys-orange.png'">
+            <img id="recipe-modal-menu-img" data-brand-logo src="./assets/logo-chewys-orange.png" class="w-12 h-12 rounded-2xl object-cover border border-stone-200" alt="Menu" onerror="this.src=BRAND.logo">
           </div>
           <div>
             <div class="flex items-center gap-2">
@@ -2106,7 +2107,7 @@
         box.innerHTML = `
           <div class="text-center pb-2 border-b border-dashed border-stone-400">
             <div class="inline-block px-3 py-1 rounded-lg bg-rose-600 text-white text-sm font-black tracking-widest mb-1">VOID</div>
-            <div class="font-extrabold text-sm tracking-wider">CHEWY'S DESSERT</div>
+            <div class="font-extrabold text-sm tracking-wider">${BRAND.receiptName}</div>
             <div class="text-[10px] text-stone-500">Struk Pembatalan Transaksi</div>
           </div>
           <div class="py-2 border-b border-dashed border-stone-400 text-[10px] space-y-0.5">
@@ -2176,7 +2177,7 @@
       const a = analyticsData;
       const todayStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-      let msg = `*📊 LAPORAN KEUANGAN & CLOSING CHEWY'S DESSERT*\n`;
+      let msg = `*📊 LAPORAN KEUANGAN & CLOSING ${BRAND.receiptName}*\n`;
       msg += `📅 Tanggal: ${todayStr} (Filter: ${currentRange.toUpperCase()})\n`;
       msg += `--------------------------------\n`;
       msg += `💰 *Total Omset Penjualan:* ${formatRupiah(a.totalRevenue)}\n`;
@@ -2195,7 +2196,7 @@
         msg += `${idx + 1}. ${m.name} (${m.qty} pcs) -> Profit ${formatRupiah(m.profit)}\n`;
       });
       msg += `--------------------------------\n`;
-      msg += `_Laporan otomatis dari Chewy's Owner Portal ✨_`;
+      msg += `_Laporan otomatis dari ${BRAND.portalName} ✨_`;
 
       const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
       window.open(waUrl, '_blank');
@@ -2225,13 +2226,13 @@
       const viewPO = document.getElementById('owner-view-po');
       const topActions = document.getElementById('inventory-top-actions');
 
-      const TAB_IDLE = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all';
-      const TAB_ACTIVE = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-bakery-orange text-white shadow-xs transition-all';
+      const TAB_IDLE = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all';
+      const TAB_ACTIVE = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-bakery-orange text-white shadow-xs transition-all';
       [tabFin, tabInv, tabStaff, tabAcct, tabPO].forEach(t => { t.className = TAB_IDLE; });
       [viewFin, viewInv, viewStaff, viewAcct, viewPO].forEach(v => v.classList.add('hidden'));
 
       if (view === 'finance') {
-        tabFin.className = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-[#2D1406] text-white shadow-xs transition-all';
+        tabFin.className = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-[#2D1406] text-white shadow-xs transition-all';
         viewFin.classList.remove('hidden');
         topActions.classList.add('hidden');
       } else if (view === 'staff') {
@@ -3260,7 +3261,7 @@
             <div>
               <div class="flex items-start justify-between gap-3 mb-2.5">
                 <div class="flex items-center gap-2.5">
-                  <img src="${menu.image}" class="w-11 h-11 rounded-xl object-cover border border-stone-200" onerror="this.src='./assets/logo-chewys-orange.png'">
+                  <img src="${menu.image}" class="w-11 h-11 rounded-xl object-cover border border-stone-200" onerror="this.src=BRAND.logo">
                   <div>
                     <h4 class="font-extrabold text-stone-900 text-sm leading-tight">${menu.name}</h4>
                     <span class="text-[11px] text-stone-500 font-mono font-semibold">${menu.price}</span>
@@ -3464,7 +3465,7 @@
     function updateRecipeModalImgPreview(url) {
       const imgEl = document.getElementById('recipe-modal-menu-img');
       if (!imgEl) return;
-      imgEl.src = (url && url.trim()) ? url.trim() : './assets/logo-chewys-orange.png';
+      imgEl.src = (url && url.trim()) ? url.trim() : BRAND.logo;
     }
 
     function openCreateMenuModal() {
@@ -3487,7 +3488,7 @@
       document.getElementById('recipe-modal-img-input').value = '';
       
       const imgEl = document.getElementById('recipe-modal-menu-img');
-      if (imgEl) imgEl.src = './assets/logo-chewys-orange.png';
+      if (imgEl) imgEl.src = BRAND.logo;
 
       // Default 1 row
       editingRecipeRows = [{
@@ -3525,7 +3526,7 @@
       document.getElementById('recipe-modal-img-input').value = menu.image || '';
       
       const imgEl = document.getElementById('recipe-modal-menu-img');
-      if (imgEl) imgEl.src = menu.image || './assets/logo-chewys-orange.png';
+      if (imgEl) imgEl.src = menu.image || BRAND.logo;
 
       // Load existing recipe rows
       const existing = allRecipesData[menuId] || [];
@@ -4009,7 +4010,7 @@
 
       const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
       const today = new Date().toISOString().slice(0, 10);
-      downloadCSVFile(`chewys-stok-bahan-baku-${today}.csv`, csv);
+      downloadCSVFile(`${BRAND.slug}-stok-bahan-baku-${today}.csv`, csv);
     }
 
     function exportWasteCSV() {
@@ -4033,7 +4034,7 @@
 
       const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
       const today = new Date().toISOString().slice(0, 10);
-      downloadCSVFile(`chewys-laporan-waste-kerugian-${today}.csv`, csv);
+      downloadCSVFile(`${BRAND.slug}-laporan-waste-kerugian-${today}.csv`, csv);
     }
 
     function exportStockLogsCSV() {
@@ -4056,7 +4057,7 @@
 
       const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
       const today = new Date().toISOString().slice(0, 10);
-      downloadCSVFile(`chewys-kartu-mutasi-stok-${today}.csv`, csv);
+      downloadCSVFile(`${BRAND.slug}-kartu-mutasi-stok-${today}.csv`, csv);
     }
 
     // Initialize

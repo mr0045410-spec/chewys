@@ -1,5 +1,5 @@
 /* ============================================================================
- * api-supabase.js — Client-side API layer untuk Chewy's POS (VERSI DATABASE)
+ * api-supabase.js — Client-side API layer untuk POS (VERSI DATABASE)
  *
  * PENGGANTI api-shim.js. Cara pakai: ganti
  *     <script src="api-shim.js"></script>
@@ -30,6 +30,19 @@
   var nativeFetch = window.fetch.bind(window);
   var API = SUPABASE_URL + '/rest/v1';
   var ADMIN_PIN = '1234';
+
+  /* ------------------------------------------------------------------ */
+  /* Branding: baca dari brand-config.js bila tersedia (browser).        */
+  /* Aman untuk Node/test: fallback ke nilai default bila BRAND tak ada */
+  /* ------------------------------------------------------------------ */
+  function __brand(key, fb) {
+    try {
+      var b = (typeof BRAND !== 'undefined') ? BRAND
+        : (typeof window !== 'undefined' && window.BRAND ? window.BRAND : null);
+      if (b && b[key] !== undefined && b[key] !== null && b[key] !== '') return b[key];
+    } catch (e) { /* abaikan, pakai fallback */ }
+    return fb;
+  }
 
   /* ------------------------------------------------------------------ */
   /* Supabase REST client mungil                                         */
@@ -383,7 +396,7 @@
     // Nomor struk atomic via Postgres function (anti-duplikat antar kasir)
     return rpc('next_order_seq', { p_date_key: todayStr }).then(function (seqRaw) {
       var seq = Array.isArray(seqRaw) ? seqRaw[0] : seqRaw;
-      var orderId = 'CWY-' + todayStr + '-' + String(seq).padStart(4, '0');
+      var orderId = __brand('orderPrefix', 'CWY') + '-' + todayStr + '-' + String(seq).padStart(4, '0');
       var newOrder = {
         id: orderId,
         orderType: body.orderType || 'dine-in',
@@ -869,7 +882,7 @@
         if (!mrows.length) {
           var item = {
             id: menuId, name: body.name, category: body.category || 'bomboloni',
-            tag: 'Menu Baru', description: "Kreasi dessert terbaru dari dapur Chewy's.",
+            tag: 'Menu Baru', description: 'Kreasi dessert terbaru dari dapur ' + __brand('name', "Chewy's") + '.',
             price: formattedPrice, bundleInfo: '', safeForShipping: true,
             stockQty: 25, inStock: true,
             image: body.image || DEFAULT_MENU_IMG,
@@ -2118,11 +2131,11 @@
         { wch: 20 }, { wch: 45 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 12 }
       ];
       XLSX.utils.book_append_sheet(wb, ws, 'Penjualan');
-      XLSX.writeFile(wb, 'laporan-penjualan-chewys.xlsx');
+      XLSX.writeFile(wb, 'laporan-penjualan-' + __brand('slug', 'chewys') + '.xlsx');
     }).catch(function () {
       // Offline / CDN gagal: fallback ke CSV
       fetchAllOrders().then(function (allOrders) {
-        downloadBlob('laporan-penjualan-chewys.csv', buildExportCSV(allOrders), 'text/csv;charset=UTF-8');
+        downloadBlob('laporan-penjualan-' + __brand('slug', 'chewys') + '.csv', buildExportCSV(allOrders), 'text/csv;charset=UTF-8');
       });
     });
   }
@@ -2135,7 +2148,7 @@
     if (href === '/api/owner/export-csv') {
       e.preventDefault();
       fetchAllOrders().then(function (allOrders) {
-        downloadBlob('laporan-penjualan-chewys.csv', buildExportCSV(allOrders), 'text/csv;charset=UTF-8');
+        downloadBlob('laporan-penjualan-' + __brand('slug', 'chewys') + '.csv', buildExportCSV(allOrders), 'text/csv;charset=UTF-8');
       });
     } else if (href === '/api/owner/export-excel') {
       handleExportExcelClick(e);

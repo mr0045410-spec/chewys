@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+  <script src="brand-config.js"></script>
   <script src="api-supabase.js"></script>
   <!-- api-shim: ganti /api/* dgn localStorage (perbaikan persistensi utk hosting statis) -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Kasir POS · Chewy's Dessert & Coffee</title>
+  <title data-brand-page="pos">Kasir POS · Chewy's Dessert & Coffee</title>
   <link rel="icon" type="image/png" href="./assets/logo-chewys-orange.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -14,10 +15,10 @@
       theme: {
         extend: {
           colors: {
-            'bakery-orange': '#FE6134',
-            'bakery-orange-hover': '#e34e23',
-            'bakery-cream': '#F7F6E2',
-            'chocolate-dark': '#2D1406'
+            'bakery-orange': (window.BRAND && BRAND.primaryColor) || '#FE6134',
+            'bakery-orange-hover': (window.BRAND && BRAND.primaryColorHover) || '#e34e23',
+            'bakery-cream': (window.BRAND && BRAND.creamColor) || '#F7F6E2',
+            'chocolate-dark': (window.BRAND && BRAND.darkColor) || '#2D1406'
           }
         }
       }
@@ -84,12 +85,12 @@
   <!-- =========================================================================
        TOP NAVIGATION BAR
        ========================================================================= -->
-  <header class="h-16 bg-white border-b border-stone-200 px-4 sm:px-6 flex items-center justify-between shrink-0 shadow-sm z-20">
-    <div class="flex items-center gap-3">
+  <header class="h-16 bg-white border-b border-stone-200 px-3 sm:px-6 flex items-center justify-between shrink-0 shadow-sm z-20">
+    <div class="flex items-center gap-2 sm:gap-3 shrink-0">
       <a href="/" class="flex items-center gap-2 group">
-        <img src="./assets/logo-chewys-orange.png" alt="Chewy's" class="h-8 object-contain">
+        <img data-brand-logo src="./assets/logo-chewys-orange.png" alt="Chewy's" class="h-8 object-contain">
       </a>
-      <span class="bg-orange-100 text-bakery-orange font-bold text-xs uppercase tracking-wider px-2.5 py-1 rounded-lg flex items-center gap-1.5 border border-orange-200">
+      <span class="bg-orange-100 text-bakery-orange font-bold text-xs uppercase tracking-wider px-2 sm:px-2.5 py-1 rounded-lg hidden sm:flex items-center gap-1.5 border border-orange-200">
         <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
         <span>KASIR POS</span>
       </span>
@@ -100,40 +101,40 @@
     </div>
 
     <!-- Quick action links -->
-    <div class="flex items-center gap-2 sm:gap-3">
+    <div class="flex items-center gap-1.5 sm:gap-3 overflow-x-auto min-w-0">
       <!-- Shift aktif -->
-      <div id="shift-badge" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs"></div>
-      <button id="btn-close-shift" onclick="openShiftCloseModal()" class="hidden px-3 sm:px-3.5 py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 font-semibold text-xs gap-1.5 transition-colors">
+      <div id="shift-badge" class="hidden items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs shrink-0 min-w-0"></div>
+      <button id="btn-close-shift" onclick="openShiftCloseModal()" class="hidden px-2 sm:px-3.5 py-1.5 rounded-xl shrink-0 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 font-semibold text-xs gap-1.5 transition-colors">
         <i data-lucide="log-out" class="w-4 h-4"></i>
         <span class="hidden sm:inline">Tutup Shift</span>
       </button>
 
       <!-- Laporan Hari Ini Modal Trigger -->
-      <button onclick="openSummaryModal()" class="px-3 sm:px-3.5 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs flex items-center gap-1.5 transition-colors">
+      <button onclick="openSummaryModal()" class="px-2 sm:px-3.5 py-1.5 rounded-xl shrink-0 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs flex items-center gap-1.5 transition-colors">
         <i data-lucide="bar-chart-2" class="w-4 h-4 text-bakery-orange"></i>
         <span class="hidden sm:inline">Laporan Hari Ini</span>
       </button>
 
       <!-- Riwayat Pesanan Modal Trigger -->
-      <button onclick="openHistoryModal()" class="px-3 sm:px-3.5 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs flex items-center gap-1.5 transition-colors">
+      <button onclick="openHistoryModal()" class="px-2 sm:px-3.5 py-1.5 rounded-xl shrink-0 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs flex items-center gap-1.5 transition-colors">
         <i data-lucide="receipt" class="w-4 h-4 text-stone-600"></i>
         <span class="hidden sm:inline">Riwayat Struk</span>
       </button>
 
       <!-- Panel Admin / Stok -->
-      <a href="/admin.html" target="_blank" class="px-3 sm:px-3.5 py-1.5 rounded-xl bg-orange-50 border border-orange-200 text-bakery-orange hover:bg-orange-100 font-semibold text-xs flex items-center gap-1.5 transition-colors">
+      <a href="/admin.html" target="_blank" class="px-2 sm:px-3.5 py-1.5 rounded-xl shrink-0 bg-orange-50 border border-orange-200 text-bakery-orange hover:bg-orange-100 font-semibold text-xs flex items-center gap-1.5 transition-colors">
         <i data-lucide="package" class="w-4 h-4"></i>
         <span class="hidden md:inline">Panel Stok</span>
       </a>
 
       <!-- Portal Owner -->
-      <a href="/owner.html" target="_blank" class="px-3 sm:px-3.5 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 hover:bg-amber-100 font-semibold text-xs flex items-center gap-1.5 transition-colors">
+      <a href="/owner.html" target="_blank" class="px-2 sm:px-3.5 py-1.5 rounded-xl shrink-0 bg-amber-50 border border-amber-300 text-amber-900 hover:bg-amber-100 font-semibold text-xs flex items-center gap-1.5 transition-colors">
         <i data-lucide="crown" class="w-4 h-4 text-amber-600"></i>
         <span class="hidden md:inline">Portal Owner</span>
       </a>
 
       <!-- Mobile Cart Drawer Toggle (Only on mobile) -->
-      <button onclick="toggleMobileCart()" class="lg:hidden relative p-2 rounded-xl bg-bakery-orange text-white shadow-sm flex items-center justify-center">
+      <button onclick="toggleMobileCart()" class="lg:hidden relative p-2 rounded-xl bg-bakery-orange text-white shadow-sm flex items-center justify-center shrink-0 order-first">
         <i data-lucide="shopping-bag" class="w-5 h-5"></i>
         <span id="mobile-cart-badge" class="hidden absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white font-bold text-[10px] rounded-full items-center justify-center border-2 border-white">0</span>
       </button>
@@ -354,10 +355,10 @@
       <div id="tab-payment-qris" class="hidden flex-col items-center text-center space-y-3 py-2 flex-1">
         <div class="p-3 bg-white border-2 border-orange-200 rounded-2xl shadow-sm inline-block">
           <!-- QRIS SVG Mockup -->
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=CHEWYS-QRIS-MOCK" alt="QRIS Chewy's" class="w-36 h-36 rounded-lg mx-auto">
+          <img data-brand-qris src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=CHEWYS-QRIS-MOCK" alt="QRIS Chewy's" class="w-36 h-36 rounded-lg mx-auto">
         </div>
         <div>
-          <span class="text-xs font-bold text-[#2D1406] block">Scan QRIS Chewy's Dessert</span>
+          <span data-brand-text="qrisLabel" class="text-xs font-bold text-[#2D1406] block">Scan QRIS Chewy's Dessert</span>
           <p class="text-[11px] text-stone-500">Mendukung BCA, Mandiri, GoPay, OVO, ShopeePay, Dana</p>
         </div>
         <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-1.5">
@@ -726,9 +727,9 @@
           day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
         });
         badge.innerHTML = `
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span class="font-bold text-emerald-800">${escapeHtml(currentShift.employeeName)}</span>
-          <span class="text-stone-400">· Shift ${openTime}</span>`;
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+          <span class="font-bold text-emerald-800 truncate max-w-[72px] sm:max-w-none">${escapeHtml(currentShift.employeeName)}</span>
+          <span class="text-stone-400 hidden sm:inline">· Shift ${openTime}</span>`;
         badge.classList.remove('hidden');
         badge.classList.add('flex');
         if (closeBtn) { closeBtn.classList.remove('hidden'); closeBtn.classList.add('flex'); }
@@ -1441,10 +1442,10 @@
 
       container.innerHTML = `
         <div class="text-center pb-2 border-b border-dashed border-stone-400">
-          <div class="font-extrabold text-sm tracking-wider">CHEWY'S DESSERT</div>
-          <div class="text-[10px] text-stone-600">Fresh Bomboloni & Artisanal Brookies</div>
-          <div class="text-[10px] text-stone-500 mt-0.5">Jl. Senopati No. 45, Jakarta Selatan</div>
-          <div class="text-[10px] text-stone-500">WA: 0812-3456-7890 | IG: @chewys.dessert</div>
+          <div class="font-extrabold text-sm tracking-wider">${BRAND.receiptName}</div>
+          <div class="text-[10px] text-stone-600">${BRAND.tagline}</div>
+          <div class="text-[10px] text-stone-500 mt-0.5">${BRAND.address}</div>
+          <div class="text-[10px] text-stone-500">WA: ${BRAND.phone} | IG: ${BRAND.instagram}</div>
         </div>
 
         <div class="py-2 border-b border-dashed border-stone-400 text-[10px] space-y-0.5">
@@ -1503,7 +1504,7 @@
 
         <div class="pt-3 text-center text-[10px] text-stone-500 space-y-1">
           <p class="font-bold text-stone-700">Terima kasih atas pesanan Anda!</p>
-          <p>Tag kami di Instagram Story @chewys.dessert</p>
+          <p>Tag kami di Instagram Story ${BRAND.instagram}</p>
           <p class="text-[9px] text-stone-400">--- Simpan struk ini sebagai bukti pembayaran ---</p>
         </div>
       `;
@@ -1518,7 +1519,7 @@
       const o = activeCompletedOrder;
       const orderDate = new Date(o.createdAt).toLocaleString('id-ID');
       
-      let msg = `*STRUK PEMBELIAN CHEWY'S DESSERT*\n`;
+      let msg = `*STRUK PEMBELIAN ${BRAND.receiptName}*\n`;
       msg += `No. Transaksi: ${o.id}\n`;
       msg += `Waktu: ${orderDate}\n`;
       msg += `Kasir: ${o.cashier} | Tipe: ${o.orderType.toUpperCase()} (${o.tableOrCustomer})\n`;
@@ -1538,7 +1539,7 @@
       msg += `*Metode:* ${o.paymentMethod.toUpperCase()} (${formatRupiah(o.cashPaid)})\n`;
       if (o.paymentMethod === 'cash') msg += `*Kembalian:* ${formatRupiah(o.cashChange)}\n`;
       msg += `--------------------------------\n`;
-      msg += `Terima kasih! Have a Sweet Day 🍩✨\nInstagram: @chewys.dessert`;
+      msg += `${BRAND.receiptThanks}\nInstagram: ${BRAND.instagram}`;
 
       const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
       window.open(waUrl, '_blank');
