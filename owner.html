@@ -207,6 +207,10 @@
           <i data-lucide="shopping-cart" class="w-4 h-4 text-bakery-orange"></i>
           <span>Purchase Order</span>
         </button>
+        <button onclick="switchOwnerView('promo')" id="view-tab-promo" class="px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all">
+          <i data-lucide="badge-percent" class="w-4 h-4 text-bakery-orange"></i>
+          <span>Promo & Loyalitas</span>
+        </button>
       </div>
 
       <div id="inventory-top-actions" class="hidden flex flex-wrap items-center gap-2">
@@ -833,6 +837,18 @@
             <input id="set-service-rate" type="number" min="0" max="100" step="0.5" class="w-full px-3 py-2 rounded-xl border border-stone-300 text-sm font-mono focus:outline-none focus:border-bakery-orange" placeholder="0" />
           </div>
         </div>
+        <div class="grid grid-cols-2 gap-3 mt-3">
+          <div>
+            <label class="text-xs font-bold text-stone-600 mb-1.5 block">Poin per Belanja (Rp)</label>
+            <input id="set-loyalty-per-rp" type="number" min="1" step="1" class="w-full px-3 py-2 rounded-xl border border-stone-300 text-sm font-mono focus:outline-none focus:border-bakery-orange" placeholder="10000" />
+            <p class="text-[10px] text-stone-400 mt-1">cth. 10000 = 1 poin tiap Rp10.000</p>
+          </div>
+          <div>
+            <label class="text-xs font-bold text-stone-600 mb-1.5 block">Nilai 1 Poin (Rp diskon)</label>
+            <input id="set-loyalty-rp-point" type="number" min="1" step="1" class="w-full px-3 py-2 rounded-xl border border-stone-300 text-sm font-mono focus:outline-none focus:border-bakery-orange" placeholder="100" />
+            <p class="text-[10px] text-stone-400 mt-1">cth. 100 = 1 poin bernilai Rp100</p>
+          </div>
+        </div>
         <p id="pos-settings-status" class="text-[11px] text-stone-400 mt-2"></p>
       </div>
 
@@ -1049,6 +1065,52 @@
     </div>
     <!-- END VIEW 5: PURCHASE ORDER -->
 
+    <!-- VIEW 6: PROMO & LOYALITAS -->
+    <div id="owner-view-promo" class="hidden space-y-6">
+
+      <!-- Section: Daftar Promo -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+              <i data-lucide="badge-percent" class="w-5 h-5 text-bakery-orange"></i>
+              Daftar Promo
+            </h3>
+            <p class="text-[11px] text-stone-400 mt-0.5">Promo otomatis muncul di kasir; voucher dipakai via kode.</p>
+          </div>
+          <button onclick="openPromoModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-xs font-bold shadow-xs transition-colors">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>Tambah Promo</span>
+          </button>
+        </div>
+        <div id="promo-list" class="text-xs text-stone-400">Memuat...</div>
+      </div>
+
+      <!-- Section: Loyalitas Pelanggan -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-extrabold text-[#2D1406] flex items-center gap-2">
+              <i data-lucide="heart-handshake" class="w-5 h-5 text-bakery-orange"></i>
+              Loyalitas Pelanggan
+            </h3>
+            <p class="text-[11px] text-stone-400 mt-0.5">Poin member: dapat tiap belanja, tukar jadi diskon. Rasio diatur di Pengaturan Akuntansi.</p>
+          </div>
+          <button onclick="openCustomerModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-xs font-bold shadow-xs transition-colors">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>Tambah Pelanggan</span>
+          </button>
+        </div>
+        <div class="mb-3">
+          <input type="text" id="customer-search" placeholder="Cari nama / no. HP..." oninput="loadCustomers()" class="w-full sm:w-64 px-4 py-2 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+        </div>
+        <div id="loyalty-list" class="text-xs text-stone-400">Memuat...</div>
+        <div id="customer-detail-wrap" class="hidden mt-4"></div>
+      </div>
+
+    </div>
+    <!-- END VIEW 6: PROMO & LOYALITAS -->
+
   </main>
 <!-- MODAL: Akun -->
   <div id="account-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
@@ -1133,6 +1195,166 @@
   </div>
 
   <!-- MODAL: Supplier -->
+  <!-- Modal Promo -->
+  <div id="promo-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl w-full max-w-lg p-6 border border-stone-200 shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="promo-modal-title" class="text-lg font-extrabold text-[#2D1406]">Tambah Promo</h3>
+        <button onclick="closeModal('promo-modal')" class="p-1.5 rounded-xl hover:bg-stone-100 text-stone-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="submitPromoForm(event)" class="space-y-3">
+        <input type="hidden" id="promo-form-id">
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Nama Promo</label>
+          <input type="text" id="promo-form-name" required placeholder="mis. Diskon Jumat Berkah" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Tipe</label>
+            <select id="promo-form-type" onchange="onPromoTypeChange()" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+              <option value="percent">Diskon %</option>
+              <option value="nominal">Potongan Rp</option>
+              <option value="buy_x_get_y">Beli X Gratis Y</option>
+            </select>
+          </div>
+          <div id="promo-value-wrap">
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider" id="promo-value-label">Nilai (%)</label>
+            <input type="number" id="promo-form-value" min="0" value="10" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+          </div>
+        </div>
+        <div id="promo-buyxy-wrap" class="hidden grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Beli (X)</label>
+            <input type="number" id="promo-form-buyx" min="1" value="2" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+          </div>
+          <div>
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Gratis (Y)</label>
+            <input type="number" id="promo-form-buyy" min="1" value="1" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+          </div>
+        </div>
+        <div id="promo-maxdisc-wrap" class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Maks. Diskon Rp (opsional)</label>
+            <input type="number" id="promo-form-maxdisc" min="0" placeholder="cth. 20000" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+          </div>
+          <div>
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Min. Belanja Rp</label>
+            <input type="number" id="promo-form-minpurchase" min="0" value="0" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Berlaku Untuk</label>
+            <select id="promo-form-targettype" onchange="onPromoTargetChange()" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+              <option value="all">Semua item</option>
+              <option value="category">Kategori tertentu</option>
+              <option value="menu">Menu tertentu</option>
+            </select>
+          </div>
+          <div id="promo-target-wrap" class="hidden">
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Pilih Target</label>
+            <select id="promo-form-target" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm"></select>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Kode Voucher (opsional)</label>
+          <input type="text" id="promo-form-voucher" placeholder="cth. HEMAT10 — kosongkan = promo otomatis" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm uppercase">
+          <p class="text-[10px] text-stone-400 mt-1">Dikosongkan: promo langsung bisa dipilih di kasir. Diisi: kasir harus memasukkan kode.</p>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Mulai Tanggal</label>
+            <input type="date" id="promo-form-startdate" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+          </div>
+          <div>
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Selesai Tanggal</label>
+            <input type="date" id="promo-form-enddate" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Hari Berlaku</label>
+          <div id="promo-form-days" class="mt-1 flex flex-wrap gap-1.5"></div>
+        </div>
+        <div class="grid grid-cols-3 gap-3 items-end">
+          <div>
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Jam Mulai</label>
+            <input type="time" id="promo-form-starttime" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+          </div>
+          <div>
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Jam Selesai</label>
+            <input type="time" id="promo-form-endtime" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+          </div>
+          <div>
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Maks. Pakai</label>
+            <input type="number" id="promo-form-maxuses" min="1" placeholder="∞" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+          </div>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-stone-600 font-semibold">
+          <input type="checkbox" id="promo-form-active" checked class="w-4 h-4 accent-[#E8833A]">
+          Promo aktif
+        </label>
+        <div id="promo-form-error" class="text-[11px] text-red-600 font-semibold"></div>
+        <div class="flex gap-2 justify-end pt-1">
+          <button type="button" onclick="closeModal('promo-modal')" class="px-4 py-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold transition-colors">Batal</button>
+          <button type="submit" class="px-5 py-2.5 rounded-2xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-sm font-bold shadow-xs transition-colors">Simpan Promo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Pelanggan -->
+  <div id="customer-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl w-full max-w-md p-6 border border-stone-200 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="customer-modal-title" class="text-lg font-extrabold text-[#2D1406]">Tambah Pelanggan</h3>
+        <button onclick="closeModal('customer-modal')" class="p-1.5 rounded-xl hover:bg-stone-100 text-stone-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="submitCustomerForm(event)" class="space-y-3">
+        <input type="hidden" id="customer-form-id">
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Nama</label>
+          <input type="text" id="customer-form-name" required placeholder="mis. Bu Ani" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">No. HP (opsional)</label>
+          <input type="text" id="customer-form-phone" placeholder="08xxxxxxxxxx" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+        </div>
+        <div id="customer-form-error" class="text-[11px] text-red-600 font-semibold"></div>
+        <div class="flex gap-2 justify-end pt-1">
+          <button type="button" onclick="closeModal('customer-modal')" class="px-4 py-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold transition-colors">Batal</button>
+          <button type="submit" class="px-5 py-2.5 rounded-2xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-sm font-bold shadow-xs transition-colors">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Koreksi Poin -->
+  <div id="adjust-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl w-full max-w-sm p-6 border border-stone-200 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-extrabold text-[#2D1406]">Koreksi Poin</h3>
+        <button onclick="closeModal('adjust-modal')" class="p-1.5 rounded-xl hover:bg-stone-100 text-stone-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="submitAdjustForm(event)" class="space-y-3">
+        <input type="hidden" id="adjust-form-id">
+        <p id="adjust-cust-name" class="text-sm font-bold text-stone-600"></p>
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Jumlah Poin (+ tambah / - kurangi)</label>
+          <input type="number" id="adjust-form-points" required placeholder="cth. 50 atau -20" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+        </div>
+        <div>
+          <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Keterangan</label>
+          <input type="text" id="adjust-form-note" placeholder="mis. Bonus ulang tahun" class="mt-1 w-full px-4 py-2.5 rounded-2xl border border-stone-300 focus:border-bakery-orange focus:outline-none text-sm">
+        </div>
+        <div id="adjust-form-error" class="text-[11px] text-red-600 font-semibold"></div>
+        <div class="flex gap-2 justify-end pt-1">
+          <button type="button" onclick="closeModal('adjust-modal')" class="px-4 py-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold transition-colors">Batal</button>
+          <button type="submit" class="px-5 py-2.5 rounded-2xl bg-bakery-orange hover:bg-bakery-orange-hover text-white text-sm font-bold shadow-xs transition-colors">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="supplier-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D1406]/80 backdrop-blur-sm">
     <div class="bg-white rounded-3xl w-full max-w-md p-6 border border-stone-200 shadow-2xl">
       <div class="flex items-center justify-between mb-4">
@@ -2291,17 +2513,19 @@
       const tabStaff = document.getElementById('view-tab-staff');
       const tabAcct = document.getElementById('view-tab-accounting');
       const tabPO = document.getElementById('view-tab-po');
+      const tabPromo = document.getElementById('view-tab-promo');
       const viewFin = document.getElementById('owner-view-finance');
       const viewInv = document.getElementById('owner-view-inventory');
       const viewStaff = document.getElementById('owner-view-staff');
       const viewAcct = document.getElementById('owner-view-accounting');
       const viewPO = document.getElementById('owner-view-po');
+      const viewPromo = document.getElementById('owner-view-promo');
       const topActions = document.getElementById('inventory-top-actions');
 
       const TAB_IDLE = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all';
       const TAB_ACTIVE = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-bakery-orange text-white shadow-xs transition-all';
-      [tabFin, tabInv, tabStaff, tabAcct, tabPO].forEach(t => { t.className = TAB_IDLE; });
-      [viewFin, viewInv, viewStaff, viewAcct, viewPO].forEach(v => v.classList.add('hidden'));
+      [tabFin, tabInv, tabStaff, tabAcct, tabPO, tabPromo].forEach(t => { t.className = TAB_IDLE; });
+      [viewFin, viewInv, viewStaff, viewAcct, viewPO, viewPromo].forEach(v => v.classList.add('hidden'));
 
       if (view === 'finance') {
         tabFin.className = 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shrink-0 bg-[#2D1406] text-white shadow-xs transition-all';
@@ -2323,6 +2547,12 @@
         viewPO.classList.remove('hidden');
         topActions.classList.add('hidden');
         loadPOData();
+      } else if (view === 'promo') {
+        tabPromo.className = TAB_ACTIVE;
+        viewPromo.classList.remove('hidden');
+        topActions.classList.add('hidden');
+        loadPromos();
+        loadCustomers();
       } else {
         tabInv.className = TAB_ACTIVE;
         viewInv.classList.remove('hidden');
@@ -2588,6 +2818,8 @@
         document.getElementById('set-tax-rate').value = s.tax_rate !== undefined ? s.tax_rate : 10;
         document.getElementById('set-service-label').value = s.service_label || 'Service Charge';
         document.getElementById('set-service-rate').value = s.service_rate !== undefined ? s.service_rate : 0;
+        document.getElementById('set-loyalty-per-rp').value = s.loyalty_points_per_rp !== undefined ? s.loyalty_points_per_rp : 10000;
+        document.getElementById('set-loyalty-rp-point').value = s.loyalty_rp_per_point !== undefined ? s.loyalty_rp_per_point : 100;
         if (status) status.textContent = '';
       } catch (err) {
         if (status) status.textContent = 'Gagal memuat pengaturan.';
@@ -2600,7 +2832,9 @@
         tax_label: document.getElementById('set-tax-label').value.trim() || 'PB1',
         tax_rate: parseFloat(document.getElementById('set-tax-rate').value) || 0,
         service_label: document.getElementById('set-service-label').value.trim() || 'Service Charge',
-        service_rate: parseFloat(document.getElementById('set-service-rate').value) || 0
+        service_rate: parseFloat(document.getElementById('set-service-rate').value) || 0,
+        loyalty_points_per_rp: Math.max(1, parseInt(document.getElementById('set-loyalty-per-rp').value, 10) || 10000),
+        loyalty_rp_per_point: Math.max(1, parseInt(document.getElementById('set-loyalty-rp-point').value, 10) || 100)
       };
       try {
         const res = await fetch('/api/owner/settings', {
@@ -2876,6 +3110,420 @@
       } catch (err) {
         wrap.innerHTML = '<p class="text-xs text-rose-500">Gagal memuat neraca.</p>';
       }
+    }
+
+    // =========================================================================
+    // PROMO & LOYALITAS
+    // =========================================================================
+    let promoList = [];
+    let promoMenusCache = [];
+    let promoCatsCache = [];
+    const PROMO_TYPE_LABEL = { percent: 'Diskon %', nominal: 'Potongan Rp', buy_x_get_y: 'Beli X Gratis Y' };
+    const DAY_LABEL = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+
+    function fmtRpShort(n) { return 'Rp ' + Number(n || 0).toLocaleString('id-ID'); }
+
+    function promoDesc(p) {
+      let d = '';
+      if (p.type === 'percent') d = p.value + '%' + (p.maxDiscount ? ' (maks ' + fmtRpShort(p.maxDiscount) + ')' : '');
+      else if (p.type === 'nominal') d = fmtRpShort(p.value);
+      else d = 'Beli ' + p.buyX + ' gratis ' + p.buyY;
+      if (p.targetType === 'category') d += ' • ' + p.targetValue;
+      else if (p.targetType === 'menu') {
+        const m = promoMenusCache.find(x => x.id === p.targetValue);
+        d += ' • ' + (m ? m.name : p.targetValue);
+      }
+      if (p.minPurchase > 0) d += ' • min. ' + fmtRpShort(p.minPurchase);
+      if (p.voucherCode) d += ' • kode: ' + p.voucherCode;
+      return d;
+    }
+
+    function promoValidity(p) {
+      const bits = [];
+      if (p.startDate || p.endDate) bits.push((p.startDate || '…') + ' s/d ' + (p.endDate || '…'));
+      if (p.daysOfWeek && p.daysOfWeek.length < 7) bits.push(p.daysOfWeek.map(d => DAY_LABEL[d]).join(', '));
+      if (p.startTime && p.endTime) bits.push(p.startTime.slice(0, 5) + '–' + p.endTime.slice(0, 5));
+      if (p.maxUses) bits.push(p.usesCount + '/' + p.maxUses + ' terpakai');
+      return bits.join(' • ') || 'Selalu berlaku';
+    }
+
+    async function loadPromos() {
+      const wrap = document.getElementById('promo-list');
+      try {
+        const res = await fetch('/api/owner/promos');
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'Gagal memuat promo');
+        promoList = data.promos || [];
+        renderPromos();
+      } catch (e) {
+        const msg = String((e && e.message) || e);
+        wrap.innerHTML = /promos/i.test(msg)
+          ? '<p class="font-bold text-stone-600 text-xs mt-1">Fitur promo belum aktif di database. Jalankan skema bagian 13 (supabase-promo.sql) di SQL Editor.</p>'
+          : '<p class="text-red-600 text-xs">Gagal memuat promo: ' + escapeOwnerHtml(msg) + '</p>';
+      }
+      lucide.createIcons();
+    }
+
+    function renderPromos() {
+      const wrap = document.getElementById('promo-list');
+      if (!promoList.length) {
+        wrap.innerHTML = '<div class="text-center py-8 text-stone-400"><i data-lucide="badge-percent" class="w-10 h-10 mx-auto mb-2 opacity-40"></i><p class="text-xs font-semibold">Belum ada promo. Klik "Tambah Promo" untuk membuat.</p></div>';
+        lucide.createIcons();
+        return;
+      }
+      let h = '<div class="overflow-x-auto rounded-2xl border border-stone-200"><table class="w-full text-xs">';
+      h += '<thead><tr class="bg-stone-50 text-stone-500 uppercase text-[10px] tracking-wider">'
+        + '<th class="text-left px-3 py-2.5 font-bold">Promo</th>'
+        + '<th class="text-left px-3 py-2.5 font-bold">Detail</th>'
+        + '<th class="text-left px-3 py-2.5 font-bold">Berlaku</th>'
+        + '<th class="text-center px-3 py-2.5 font-bold">Status</th>'
+        + '<th class="text-right px-3 py-2.5 font-bold">Aksi</th></tr></thead><tbody>';
+      promoList.forEach(p => {
+        h += '<tr class="border-t border-stone-100 hover:bg-stone-50/60">'
+          + '<td class="px-3 py-2.5"><div class="font-bold text-[#2D1406]">' + escapeOwnerHtml(p.name) + '</div>'
+          + '<div class="text-[10px] text-stone-400">' + PROMO_TYPE_LABEL[p.type] + '</div></td>'
+          + '<td class="px-3 py-2.5 text-stone-600">' + escapeOwnerHtml(promoDesc(p)) + '</td>'
+          + '<td class="px-3 py-2.5 text-stone-500 text-[11px]">' + escapeOwnerHtml(promoValidity(p)) + '</td>'
+          + '<td class="px-3 py-2.5 text-center">'
+          + '<button onclick="togglePromoActive(\'' + p.id + '\', ' + (!p.active) + ')" title="Aktif/nonaktif" class="inline-flex px-2.5 py-1 rounded-full text-[10px] font-black ' + (p.active ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-200 text-stone-500') + '">'
+          + (p.active ? 'AKTIF' : 'NONAKTIF') + '</button></td>'
+          + '<td class="px-3 py-2.5 text-right whitespace-nowrap">'
+          + '<button onclick="openPromoModal(\'' + p.id + '\')" class="p-1.5 rounded-lg hover:bg-stone-200 text-stone-500" title="Ubah"><i data-lucide="pencil" class="w-4 h-4"></i></button>'
+          + '<button onclick="deletePromo(\'' + p.id + '\')" class="p-1.5 rounded-lg hover:bg-rose-100 text-rose-500" title="Hapus"><i data-lucide="trash-2" class="w-4 h-4"></i></button>'
+          + '</td></tr>';
+      });
+      h += '</tbody></table></div>';
+      wrap.innerHTML = h;
+      lucide.createIcons();
+    }
+
+    function renderPromoDays(selected) {
+      const wrap = document.getElementById('promo-form-days');
+      const sel = selected || [0, 1, 2, 3, 4, 5, 6];
+      wrap.innerHTML = DAY_LABEL.map((d, i) =>
+        '<label class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-[11px] font-bold cursor-pointer ' +
+        (sel.includes(i) ? 'border-bakery-orange bg-orange-50 text-[#2D1406]' : 'border-stone-200 text-stone-400') + '">' +
+        '<input type="checkbox" value="' + i + '" ' + (sel.includes(i) ? 'checked' : '') + ' class="promo-day-cb accent-[#E8833A]" onchange="renderPromoDays()"> ' + d + '</label>'
+      ).join('');
+    }
+
+    function getPromoDays() {
+      return Array.from(document.querySelectorAll('.promo-day-cb:checked')).map(cb => Number(cb.value));
+    }
+
+    function onPromoTypeChange() {
+      const t = document.getElementById('promo-form-type').value;
+      document.getElementById('promo-value-wrap').classList.toggle('hidden', t === 'buy_x_get_y');
+      document.getElementById('promo-buyxy-wrap').classList.toggle('hidden', t !== 'buy_x_get_y');
+      document.getElementById('promo-maxdisc-wrap').classList.toggle('hidden', t !== 'percent');
+      document.getElementById('promo-value-label').textContent = t === 'percent' ? 'Nilai (%)' : 'Nilai (Rp)';
+    }
+
+    async function onPromoTargetChange() {
+      const tt = document.getElementById('promo-form-targettype').value;
+      const wrap = document.getElementById('promo-target-wrap');
+      const sel = document.getElementById('promo-form-target');
+      if (tt === 'all') { wrap.classList.add('hidden'); return; }
+      wrap.classList.remove('hidden');
+      sel.innerHTML = '<option>Memuat...</option>';
+      try {
+        if (tt === 'category') {
+          if (!promoCatsCache.length) {
+            const r = await fetch('/api/menu'); const d = await r.json();
+            promoCatsCache = (d.data && d.data.categories) || [];
+          }
+          sel.innerHTML = promoCatsCache.map(c => '<option value="' + escapeOwnerHtml(c) + '">' + escapeOwnerHtml(c) + '</option>').join('');
+        } else {
+          if (!promoMenusCache.length) {
+            const r = await fetch('/api/menu'); const d = await r.json();
+            promoMenusCache = ((d.data && d.data.menuItems) || []).map(m => ({ id: m.id, name: m.name }));
+          }
+          sel.innerHTML = promoMenusCache.map(m => '<option value="' + escapeOwnerHtml(m.id) + '">' + escapeOwnerHtml(m.name) + '</option>').join('');
+        }
+      } catch (e) { sel.innerHTML = '<option>Gagal memuat</option>'; }
+    }
+
+    async function openPromoModal(id) {
+      document.getElementById('promo-form-id').value = id || '';
+      document.getElementById('promo-modal-title').textContent = id ? 'Ubah Promo' : 'Tambah Promo';
+      document.getElementById('promo-form-error').textContent = '';
+      renderPromoDays();
+      await onPromoTargetChange();
+      if (id) {
+        const p = promoList.find(x => x.id === id);
+        if (!p) return;
+        document.getElementById('promo-form-name').value = p.name;
+        document.getElementById('promo-form-type').value = p.type;
+        document.getElementById('promo-form-value').value = p.value;
+        document.getElementById('promo-form-maxdisc').value = p.maxDiscount || '';
+        document.getElementById('promo-form-buyx').value = p.buyX || 2;
+        document.getElementById('promo-form-buyy').value = p.buyY || 1;
+        document.getElementById('promo-form-targettype').value = p.targetType;
+        await onPromoTargetChange();
+        if (p.targetType !== 'all') document.getElementById('promo-form-target').value = p.targetValue;
+        document.getElementById('promo-form-minpurchase').value = p.minPurchase || 0;
+        document.getElementById('promo-form-voucher').value = p.voucherCode || '';
+        document.getElementById('promo-form-startdate').value = p.startDate || '';
+        document.getElementById('promo-form-enddate').value = p.endDate || '';
+        renderPromoDays(p.daysOfWeek);
+        document.getElementById('promo-form-starttime').value = p.startTime ? p.startTime.slice(0, 5) : '';
+        document.getElementById('promo-form-endtime').value = p.endTime ? p.endTime.slice(0, 5) : '';
+        document.getElementById('promo-form-maxuses').value = p.maxUses || '';
+        document.getElementById('promo-form-active').checked = p.active !== false;
+      } else {
+        document.getElementById('promo-form-name').value = '';
+        document.getElementById('promo-form-type').value = 'percent';
+        document.getElementById('promo-form-value').value = 10;
+        document.getElementById('promo-form-maxdisc').value = '';
+        document.getElementById('promo-form-buyx').value = 2;
+        document.getElementById('promo-form-buyy').value = 1;
+        document.getElementById('promo-form-targettype').value = 'all';
+        document.getElementById('promo-form-minpurchase').value = 0;
+        document.getElementById('promo-form-voucher').value = '';
+        document.getElementById('promo-form-startdate').value = '';
+        document.getElementById('promo-form-enddate').value = '';
+        document.getElementById('promo-form-starttime').value = '';
+        document.getElementById('promo-form-endtime').value = '';
+        document.getElementById('promo-form-maxuses').value = '';
+        document.getElementById('promo-form-active').checked = true;
+      }
+      onPromoTypeChange();
+      openModal('promo-modal');
+    }
+
+    async function submitPromoForm(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('promo-form-error');
+      errBox.textContent = '';
+      const id = document.getElementById('promo-form-id').value;
+      const payload = {
+        name: document.getElementById('promo-form-name').value.trim(),
+        type: document.getElementById('promo-form-type').value,
+        value: Number(document.getElementById('promo-form-value').value) || 0,
+        maxDiscount: document.getElementById('promo-form-maxdisc').value || null,
+        buyX: Number(document.getElementById('promo-form-buyx').value) || null,
+        buyY: Number(document.getElementById('promo-form-buyy').value) || null,
+        targetType: document.getElementById('promo-form-targettype').value,
+        targetValue: document.getElementById('promo-form-targettype').value === 'all' ? null : document.getElementById('promo-form-target').value,
+        minPurchase: Number(document.getElementById('promo-form-minpurchase').value) || 0,
+        voucherCode: document.getElementById('promo-form-voucher').value.trim() || null,
+        startDate: document.getElementById('promo-form-startdate').value || null,
+        endDate: document.getElementById('promo-form-enddate').value || null,
+        daysOfWeek: getPromoDays(),
+        startTime: document.getElementById('promo-form-starttime').value || null,
+        endTime: document.getElementById('promo-form-endtime').value || null,
+        maxUses: document.getElementById('promo-form-maxuses').value || null,
+        active: document.getElementById('promo-form-active').checked
+      };
+      try {
+        const res = await fetch('/api/owner/promos', {
+          method: id ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(id ? Object.assign({ id }, payload) : payload)
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'Gagal menyimpan promo');
+        closeModal('promo-modal');
+        toast(id ? 'Promo diperbarui.' : 'Promo dibuat.');
+        loadPromos();
+      } catch (e2) { errBox.textContent = e2.message; }
+    }
+
+    async function togglePromoActive(id, active) {
+      try {
+        const res = await fetch('/api/owner/promos', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, active })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        toast(active ? 'Promo diaktifkan.' : 'Promo dinonaktifkan.');
+        loadPromos();
+      } catch (e) { toast('Gagal: ' + e.message, 'error'); }
+    }
+
+    async function deletePromo(id) {
+      const p = promoList.find(x => x.id === id);
+      const yes = await askConfirm('Hapus promo "' + (p ? p.name : id) + '"? Riwayat pemakaiannya ikut terhapus.');
+      if (!yes) return;
+      try {
+        const res = await fetch('/api/owner/promos', {
+          method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        toast('Promo dihapus.');
+        loadPromos();
+      } catch (e) { toast('Gagal: ' + e.message, 'error'); }
+    }
+
+    // --- Pelanggan / Loyalitas ---
+    let customerList = [];
+
+    async function loadCustomers() {
+      const wrap = document.getElementById('loyalty-list');
+      const q = (document.getElementById('customer-search') || {}).value || '';
+      try {
+        const res = await fetch('/api/owner/customers' + (q.trim() ? '?q=' + encodeURIComponent(q.trim()) : ''));
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'Gagal memuat pelanggan');
+        customerList = data.customers || [];
+        renderCustomers();
+      } catch (e) {
+        const msg = String((e && e.message) || e);
+        wrap.innerHTML = /customers/i.test(msg)
+          ? '<p class="font-bold text-stone-600 text-xs mt-1">Fitur loyalitas belum aktif di database. Jalankan skema bagian 14 (supabase-loyalty.sql) di SQL Editor.</p>'
+          : '<p class="text-red-600 text-xs">Gagal memuat pelanggan: ' + escapeOwnerHtml(msg) + '</p>';
+      }
+      lucide.createIcons();
+    }
+
+    function renderCustomers() {
+      const wrap = document.getElementById('loyalty-list');
+      if (!customerList.length) {
+        wrap.innerHTML = '<div class="text-center py-8 text-stone-400"><i data-lucide="heart-handshake" class="w-10 h-10 mx-auto mb-2 opacity-40"></i><p class="text-xs font-semibold">Belum ada pelanggan. Klik "Tambah Pelanggan".</p></div>';
+        lucide.createIcons();
+        return;
+      }
+      let h = '<div class="overflow-x-auto rounded-2xl border border-stone-200"><table class="w-full text-xs">';
+      h += '<thead><tr class="bg-stone-50 text-stone-500 uppercase text-[10px] tracking-wider">'
+        + '<th class="text-left px-3 py-2.5 font-bold">Pelanggan</th>'
+        + '<th class="text-center px-3 py-2.5 font-bold">Poin</th>'
+        + '<th class="text-right px-3 py-2.5 font-bold">Total Belanja</th>'
+        + '<th class="text-center px-3 py-2.5 font-bold">Kunjungan</th>'
+        + '<th class="text-right px-3 py-2.5 font-bold">Aksi</th></tr></thead><tbody>';
+      customerList.forEach(c => {
+        h += '<tr class="border-t border-stone-100 hover:bg-stone-50/60 cursor-pointer" onclick="showCustomerDetail(\'' + c.id + '\')">'
+          + '<td class="px-3 py-2.5"><div class="font-bold text-[#2D1406]">' + escapeOwnerHtml(c.name) + '</div>'
+          + '<div class="text-[10px] text-stone-400">' + escapeOwnerHtml(c.phone || '—') + '</div></td>'
+          + '<td class="px-3 py-2.5 text-center"><span class="inline-flex px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-800">' + c.points + ' poin</span></td>'
+          + '<td class="px-3 py-2.5 text-right font-mono">' + fmtRpShort(c.totalSpent) + '</td>'
+          + '<td class="px-3 py-2.5 text-center">' + c.totalVisits + 'x</td>'
+          + '<td class="px-3 py-2.5 text-right whitespace-nowrap" onclick="event.stopPropagation()">'
+          + '<button onclick="openAdjustModal(\'' + c.id + '\')" class="p-1.5 rounded-lg hover:bg-stone-200 text-stone-500" title="Koreksi poin"><i data-lucide="coins" class="w-4 h-4"></i></button>'
+          + '<button onclick="openCustomerModal(\'' + c.id + '\')" class="p-1.5 rounded-lg hover:bg-stone-200 text-stone-500" title="Ubah"><i data-lucide="pencil" class="w-4 h-4"></i></button>'
+          + '<button onclick="deleteCustomer(\'' + c.id + '\')" class="p-1.5 rounded-lg hover:bg-rose-100 text-rose-500" title="Hapus"><i data-lucide="trash-2" class="w-4 h-4"></i></button>'
+          + '</td></tr>';
+      });
+      h += '</tbody></table></div>';
+      wrap.innerHTML = h;
+      lucide.createIcons();
+    }
+
+    async function showCustomerDetail(id) {
+      const wrap = document.getElementById('customer-detail-wrap');
+      wrap.classList.remove('hidden');
+      wrap.innerHTML = '<p class="text-xs text-stone-400">Memuat riwayat...</p>';
+      try {
+        const res = await fetch('/api/owner/customers?id=' + encodeURIComponent(id));
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        const c = data.customer;
+        let h = '<div class="rounded-2xl border border-stone-200 p-4 bg-stone-50/60">'
+          + '<div class="flex items-center justify-between mb-2">'
+          + '<h4 class="text-sm font-extrabold text-[#2D1406]">Riwayat Poin — ' + escapeOwnerHtml(c.name) + '</h4>'
+          + '<button onclick="document.getElementById(\'customer-detail-wrap\').classList.add(\'hidden\')" class="p-1 rounded-lg hover:bg-stone-200 text-stone-400"><i data-lucide="x" class="w-4 h-4"></i></button>'
+          + '</div>';
+        if (!data.history.length) h += '<p class="text-xs text-stone-400">Belum ada transaksi poin.</p>';
+        else {
+          h += '<div class="space-y-1 max-h-56 overflow-y-auto">';
+          data.history.forEach(t => {
+            const plus = t.points > 0;
+            h += '<div class="flex items-center justify-between text-xs py-1.5 border-b border-stone-100">'
+              + '<div><span class="font-bold ' + (plus ? 'text-emerald-600' : 'text-rose-600') + '">' + (plus ? '+' : '') + t.points + ' poin</span>'
+              + '<span class="text-stone-400 ml-2">' + escapeOwnerHtml(t.note || ({ earn: 'Perolehan', redeem: 'Penukaran', adjust: 'Koreksi' }[t.type] || t.type)) + '</span></div>'
+              + '<span class="text-[10px] text-stone-400">' + new Date(t.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) + '</span>'
+              + '</div>';
+          });
+          h += '</div>';
+        }
+        h += '</div>';
+        wrap.innerHTML = h;
+      } catch (e) { wrap.innerHTML = '<p class="text-xs text-red-600">Gagal: ' + escapeOwnerHtml(e.message) + '</p>'; }
+      lucide.createIcons();
+    }
+
+    function openCustomerModal(id) {
+      document.getElementById('customer-form-id').value = id || '';
+      document.getElementById('customer-modal-title').textContent = id ? 'Ubah Pelanggan' : 'Tambah Pelanggan';
+      document.getElementById('customer-form-error').textContent = '';
+      const c = id ? customerList.find(x => x.id === id) : null;
+      document.getElementById('customer-form-name').value = c ? c.name : '';
+      document.getElementById('customer-form-phone').value = c ? (c.phone || '') : '';
+      openModal('customer-modal');
+    }
+
+    async function submitCustomerForm(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('customer-form-error');
+      errBox.textContent = '';
+      const id = document.getElementById('customer-form-id').value;
+      const payload = {
+        name: document.getElementById('customer-form-name').value.trim(),
+        phone: document.getElementById('customer-form-phone').value.trim()
+      };
+      try {
+        const res = await fetch('/api/owner/customers', {
+          method: id ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(id ? Object.assign({ id }, payload) : payload)
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'Gagal menyimpan');
+        closeModal('customer-modal');
+        toast(id ? 'Pelanggan diperbarui.' : 'Pelanggan ditambahkan.');
+        loadCustomers();
+      } catch (e2) { errBox.textContent = e2.message; }
+    }
+
+    async function deleteCustomer(id) {
+      const c = customerList.find(x => x.id === id);
+      const yes = await askConfirm('Hapus pelanggan "' + (c ? c.name : id) + '" beserta riwayat poinnya?');
+      if (!yes) return;
+      try {
+        const res = await fetch('/api/owner/customers', {
+          method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        toast('Pelanggan dihapus.');
+        loadCustomers();
+      } catch (e) { toast('Gagal: ' + e.message, 'error'); }
+    }
+
+    function openAdjustModal(id) {
+      const c = customerList.find(x => x.id === id);
+      if (!c) return;
+      document.getElementById('adjust-form-id').value = id;
+      document.getElementById('adjust-cust-name').textContent = c.name + ' — ' + c.points + ' poin';
+      document.getElementById('adjust-form-points').value = '';
+      document.getElementById('adjust-form-note').value = '';
+      document.getElementById('adjust-form-error').textContent = '';
+      openModal('adjust-modal');
+    }
+
+    async function submitAdjustForm(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('adjust-form-error');
+      errBox.textContent = '';
+      const payload = {
+        id: document.getElementById('adjust-form-id').value,
+        points: Number(document.getElementById('adjust-form-points').value) || 0,
+        note: document.getElementById('adjust-form-note').value.trim()
+      };
+      try {
+        const res = await fetch('/api/owner/customers/adjust', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'Gagal koreksi poin');
+        closeModal('adjust-modal');
+        toast('Poin dikoreksi. Saldo: ' + data.points);
+        loadCustomers();
+      } catch (e2) { errBox.textContent = e2.message; }
     }
 
     // =========================================================================

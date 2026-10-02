@@ -201,7 +201,10 @@
       paymentMethod: r.payment_method, cashPaid: r.cash_paid,
       cashChange: r.cash_change, paymentReference: r.payment_reference || '',
       cashier: r.cashier, status: r.status, shiftId: r.shift_id || null,
-      clientRef: r.client_ref || null
+      clientRef: r.client_ref || null,
+      promoId: r.promo_id || null, promoName: r.promo_name || null,
+      customerId: r.customer_id || null, customerName: r.customer_name || null,
+      pointsEarned: Number(r.points_earned) || 0, pointsRedeemed: Number(r.points_redeemed) || 0
     };
   }
   function orderToRow(o) {
@@ -216,7 +219,10 @@
       payment_method: o.paymentMethod, cash_paid: o.cashPaid,
       cash_change: o.cashChange, payment_reference: o.paymentReference || '',
       cashier: o.cashier, status: o.status, shift_id: o.shiftId || null,
-      client_ref: o.clientRef || null
+      client_ref: o.clientRef || null,
+      promo_id: o.promoId || null, promo_name: o.promoName || null,
+      customer_id: o.customerId || null, customer_name: o.customerName || null,
+      points_earned: Number(o.pointsEarned) || 0, points_redeemed: Number(o.pointsRedeemed) || 0
     };
   }
   function rowToEmployee(r) {
@@ -420,9 +426,22 @@
     if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
       return Promise.resolve(bad({ success: false, message: 'Pesanan kosong / tidak valid' }));
     }
-    var todayStr = getJakartaDateKey();
-    // Nomor struk atomic via Postgres function (anti-duplikat antar kasir)
-    return rpc('next_order_seq', { p_date_key: todayStr }).then(function (seqRaw) {
+    var checkoutSubtotal = Number(body.subtotal) || 0;
+    // Promo (opsional): divalidasi & dihitung di server. Kode salah/kedaluwarsa
+    // -> checkout ditolak (kecuali replay sinkron offline: best effort).
+    return resolveCheckoutPromo(body, checkoutSubtotal).then(function (pr) {
+      if (pr.error) return bad({ success: false, message: pr.error });
+      var promoDiscount = pr.discount || 0;
+      var manualDiscount = Number(body.discount) || 0;
+      // Loyalitas: redeem poin (opsional). Dihitung setelah promo agar tidak
+      // melebihi sisa tagihan.
+      var subtotalAfterPromo = Math.max(0, checkoutSubtotal - manualDiscount - promoDiscount);
+      return resolveLoyaltyRedeem(body, subtotalAfterPromo).then(function (lr) {
+      if (lr.error) return bad({ success: false, message: lr.error });
+      var redeemDiscount = lr.redeemDiscount || 0;
+      var todayStr = getJakartaDateKey();
+      // Nomor struk atomic via Postgres function (anti-duplikat antar kasir)
+      return rpc('next_order_seq', { p_date_key: todayStr }).then(function (seqRaw) {
       var seq = Array.isArray(seqRaw) ? seqRaw[0] : seqRaw;
       var orderId = __brand('orderPrefix', 'CWY') + '-' + todayStr + '-' + String(seq).padStart(4, '0');
       var newOrder = {
@@ -431,9 +450,16 @@
         tableOrCustomer: body.tableOrCustomer || (body.orderType === 'dine-in' ? 'Meja -' : 'Pelanggan Walk-in'),
         items: body.items,
         subtotal: Number(body.subtotal) || 0,
-        discount: Number(body.discount) || 0,
-        discountType: body.discountType || '',
-        discountValue: Number(body.discountValue) || 0,
+        discount: manualDiscount + promoDiscount + redeemDiscount,
+        discountType: pr.promo ? 'promo' : (redeemDiscount > 0 ? 'loyalty' : (body.discountType || '')),
+        discountValue: pr.promo ? promoDiscount : (Number(body.discountValue) || 0),
+        promoId: pr.promo ? pr.promo.id : null,
+        promoName: pr.promo ? pr.promo.name : null,
+        promoWarning: pr.warning || (lr.warning || ''),
+        customerId: lr.customer ? lr.customer.id : null,
+        customerName: lr.customer ? lr.customer.name : null,
+        pointsEarned: 0, // diisi setelah order tercipta (butuh total final)
+        pointsRedeemed: lr.redeemPoints || 0,
         taxRate: Number(body.taxRate) || 0,
         taxAmount: Number(body.taxAmount) || Number(body.tax) || 0,
         tax: Number(body.taxAmount) || Number(body.tax) || 0, // kolom lama = tax_amount (kompatibel)
@@ -450,6 +476,17 @@
         // client_ref: idempotensi sinkron offline (kolom opsional, skema bag.12)
         clientRef: body.client_ref || genClientRef()
       };
+      // Promo/redeem dipakai: hitung ulang total di server (mirror logika kasir)
+      // agar konsisten walau preview klien sedikit berbeda.
+      if (pr.promo || redeemDiscount > 0) {
+        var _tDisc = manualDiscount + promoDiscount + redeemDiscount;
+        var _taxable = Math.max(0, (Number(body.subtotal) || 0) - _tDisc);
+        var _tr = Number(body.taxRate) || 0, _sr = Number(body.serviceRate) || 0;
+        newOrder.taxAmount = Math.round(_taxable * _tr / 100);
+        newOrder.tax = newOrder.taxAmount;
+        newOrder.serviceAmount = Math.round(_taxable * _sr / 100);
+        newOrder.total = _taxable + newOrder.taxAmount + newOrder.serviceAmount;
+      }
       // Jika checkout dari shift aktif: pakai nama pegawai shift sebagai kasir.
       // Tanpa shiftId, perilaku lama dipertahankan (body.cashier || 'Kasir 1').
       var shiftNameLookup = newOrder.shiftId
@@ -479,7 +516,35 @@
         }).then(function (hasRef) {
           // Kolom client_ref utk idempotensi sinkron offline (skema bagian 12).
           if (!hasRef) delete row.client_ref;
+          return ordersHasPromoCols();
+        }).then(function (hasPromo) {
+          // Kolom promo_id/promo_name (skema bagian 13); strip bila belum ada.
+          if (!hasPromo) { delete row.promo_id; delete row.promo_name; }
+          return ordersHasLoyaltyCols();
+        }).then(function (hasLoyalty) {
+          // Kolom loyalitas (skema bagian 14); strip bila belum ada.
+          if (!hasLoyalty) {
+            delete row.customer_id; delete row.customer_name;
+            delete row.points_earned; delete row.points_redeemed;
+          }
           return ins('orders', [row]);
+        }).then(function () {
+          // Catat pemakaian promo (non-fatal: gagal catat tidak menggagalkan checkout).
+          if (pr.promo && !pr.skipped) {
+            return recordPromoUsage(pr.promo.id, orderId, promoDiscount).catch(function () {});
+          }
+        }).then(function () {
+          // Loyalitas: redeem + earn poin (non-fatal).
+          if (lr.customer && !lr.skipped) {
+            return applyLoyaltyPostCheckout(lr.customer.id, orderId, newOrder.total, lr)
+              .then(function (res) {
+                if (res && res.earned > 0) {
+                  return ordersHasLoyaltyCols().then(function (has) {
+                    if (has) return upd('orders', 'id=eq.' + encodeURIComponent(orderId), { points_earned: res.earned });
+                  });
+                }
+              }).catch(function () {});
+          }
         });
       }).then(function () {
         // Kurangi stok menu
@@ -565,6 +630,520 @@
       if (isOfflineError(e)) throw e;
       return serverError(e);
     });
+    });
+    });
+  };
+
+  /* ==================================================================
+     PROMO (skema bagian 13)
+     Manajemen promo: diskon %, nominal, beli X gratis Y, voucher kode.
+     Validasi & hitung diskon SELALU di server (kasir hanya preview).
+     ================================================================== */
+  var _hasPromoCols = null;
+  function ordersHasPromoCols() {
+    if (_hasPromoCols !== null) return Promise.resolve(_hasPromoCols);
+    return sel('orders', 'select=promo_id&limit=1').then(function () {
+      _hasPromoCols = true;
+      return true;
+    }).catch(function (e) {
+      _hasPromoCols = !/promo_id/i.test(String((e && e.message) || ''));
+      return _hasPromoCols;
+    });
+  }
+
+  function promoToApi(r) {
+    return {
+      id: r.id, name: r.name, type: r.type, value: Number(r.value) || 0,
+      maxDiscount: (r.max_discount === null || r.max_discount === undefined) ? null : Number(r.max_discount),
+      buyX: (r.buy_x === null || r.buy_x === undefined) ? null : Number(r.buy_x),
+      buyY: (r.buy_y === null || r.buy_y === undefined) ? null : Number(r.buy_y),
+      targetType: r.target_type || 'all', targetValue: r.target_value || '',
+      minPurchase: Number(r.min_purchase) || 0,
+      voucherCode: r.voucher_code || '',
+      startDate: r.start_date || null, endDate: r.end_date || null,
+      daysOfWeek: r.days_of_week || null,
+      startTime: r.start_time || null, endTime: r.end_time || null,
+      maxUses: (r.max_uses === null || r.max_uses === undefined) ? null : Number(r.max_uses),
+      usesCount: Number(r.uses_count) || 0,
+      active: r.active !== false,
+      createdAt: r.created_at
+    };
+  }
+
+  function fmtJktDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function fmtJktTime(d) { return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()); }
+
+  // Validitas berbasis waktu saja (utk picker kasir; tanpa cek min. belanja & kode).
+  function promoTimeValid(p) {
+    if (!p || p.active === false) return false;
+    var now = getJakartaDate(new Date());
+    var todayStr = fmtJktDate(now);
+    if (p.startDate && todayStr < p.startDate) return false;
+    if (p.endDate && todayStr > p.endDate) return false;
+    if (p.daysOfWeek && p.daysOfWeek.length && p.daysOfWeek.indexOf(now.getDay()) < 0) return false;
+    if (p.startTime && p.endTime) {
+      var t = fmtJktTime(now);
+      if (t < p.startTime || t > p.endTime) return false;
+    }
+    if (p.maxUses !== null && p.maxUses !== undefined && (p.usesCount || 0) >= p.maxUses) return false;
+    return true;
+  }
+
+  // Validasi penuh utk checkout (termasuk kode voucher & min. belanja).
+  function validatePromo(promo, subtotal, voucherCode) {
+    if (!promoTimeValid(promo)) return { valid: false, reason: 'Promo tidak berlaku saat ini' };
+    if (promo.voucherCode) {
+      var want = String(promo.voucherCode).trim().toUpperCase();
+      var got = String(voucherCode || '').trim().toUpperCase();
+      if (got !== want) return { valid: false, reason: 'Kode voucher tidak valid' };
+    }
+    if ((promo.minPurchase || 0) > 0 && subtotal < promo.minPurchase) {
+      return { valid: false, reason: 'Min. belanja ' + formatRp(promo.minPurchase) };
+    }
+    return { valid: true };
+  }
+
+  // Hitung nominal diskon promo. items: [{id, price, qty, category}].
+  function computePromoDiscount(promo, items) {
+    var eligible = items;
+    if (promo.targetType === 'menu' && promo.targetValue) {
+      eligible = items.filter(function (i) { return i.id === promo.targetValue; });
+    } else if (promo.targetType === 'category' && promo.targetValue) {
+      eligible = items.filter(function (i) { return (i.category || '') === promo.targetValue; });
+    }
+    var eligSubtotal = eligible.reduce(function (s, i) {
+      return s + parsePriceToNumber(i.price) * (Number(i.qty) || 1);
+    }, 0);
+    if (eligSubtotal <= 0) return 0;
+    var d = 0;
+    if (promo.type === 'percent') {
+      d = Math.round(eligSubtotal * (Number(promo.value) || 0) / 100);
+      if (promo.maxDiscount !== null && promo.maxDiscount !== undefined) d = Math.min(d, promo.maxDiscount);
+    } else if (promo.type === 'nominal') {
+      d = Number(promo.value) || 0;
+    } else if (promo.type === 'buy_x_get_y') {
+      var bx = Number(promo.buyX) || 0, by = Number(promo.buyY) || 0;
+      if (bx > 0 && by > 0) {
+        eligible.forEach(function (i) {
+          var freeQty = Math.floor((Number(i.qty) || 1) / bx * by);
+          d += freeQty * parsePriceToNumber(i.price);
+        });
+      }
+    }
+    return Math.max(0, Math.min(Math.round(d), eligSubtotal));
+  }
+
+  // Peta kategori menu utk cakupan promo per kategori.
+  function menuCategoryMap(ids) {
+    if (!ids.length) return Promise.resolve({});
+    return sel('menu_items', 'select=id,category&id=in.(' + ids.map(encodeURIComponent).join(',') + ')')
+      .then(function (rows) {
+        var m = {};
+        (rows || []).forEach(function (r) { m[r.id] = r.category || ''; });
+        return m;
+      }).catch(function () { return {}; });
+  }
+
+  // Resolve promo dari body checkout -> {promo, discount} | {error} | {promo:null,discount:0,skipped:true}
+  function resolveCheckoutPromo(body, subtotal) {
+    var promoId = body.promo_id || body.promoId || null;
+    var voucherCode = String(body.voucher_code || body.voucherCode || '').trim();
+    if (!promoId && !voucherCode) return Promise.resolve({ promo: null, discount: 0 });
+    var q = promoId
+      ? sel('promos', 'select=*&id=eq.' + encodeURIComponent(promoId) + '&limit=1')
+      : sel('promos', 'select=*&voucher_code=ilike.' + encodeURIComponent(voucherCode) + '&limit=1');
+    return q.then(function (rows) {
+      if (!rows || !rows.length) return { error: 'Promo tidak ditemukan' };
+      var promo = promoToApi(rows[0]);
+      var v = validatePromo(promo, subtotal, voucherCode);
+      if (!v.valid) {
+        // Replay sinkron offline: promo kedaluwarsa jangan menggagalkan order,
+        // lewati promo-nya saja (best effort).
+        if (body.promo_best_effort) return { promo: null, discount: 0, skipped: true, warning: v.reason };
+        return { error: v.reason };
+      }
+      var ids = (body.items || []).map(function (i) { return i.id; });
+      return menuCategoryMap(ids).then(function (catMap) {
+        var items = (body.items || []).map(function (i) {
+          return { id: i.id, price: i.price, qty: i.qty, category: catMap[i.id] || '' };
+        });
+        var discount = computePromoDiscount(promo, items);
+        if (discount <= 0) {
+          if (body.promo_best_effort) return { promo: null, discount: 0, skipped: true, warning: 'Promo tidak memberi diskon' };
+          return { error: 'Promo tidak memberikan diskon untuk item ini' };
+        }
+        return { promo: promo, discount: discount };
+      });
+    }).catch(function (e) {
+      if (isOfflineError(e)) throw e;
+      // Tabel promos belum ada (skema bag.13 belum di-apply) -> abaikan promo.
+      if (/promos/i.test(String((e && e.message) || ''))) return { promo: null, discount: 0, skipped: true };
+      throw e;
+    });
+  }
+
+  function recordPromoUsage(promoId, orderId, discount) {
+    return ins('promo_usages', [{
+      id: uid('pu'), promo_id: promoId, order_id: orderId, discount_amount: discount
+    }]).then(function () {
+      return sel('promos', 'select=uses_count&id=eq.' + encodeURIComponent(promoId) + '&limit=1');
+    }).then(function (rows) {
+      if (rows && rows.length) {
+        return upd('promos', 'id=eq.' + encodeURIComponent(promoId),
+          { uses_count: (Number(rows[0].uses_count) || 0) + 1 });
+      }
+    });
+  }
+
+  function validatePromoInput(b) {
+    if (!b.name || !String(b.name).trim()) return 'Nama promo wajib diisi';
+    if (['percent', 'nominal', 'buy_x_get_y'].indexOf(b.type) < 0) return 'Tipe promo tidak valid';
+    var val = Number(b.value) || 0;
+    if (val < 0) return 'Nilai promo tidak boleh negatif';
+    if (b.type === 'percent' && val > 100) return 'Diskon % maksimal 100';
+    if (b.type === 'buy_x_get_y') {
+      if (!(Number(b.buyX) > 0) || !(Number(b.buyY) > 0)) return 'Beli X Gratis Y wajib diisi (min. 1)';
+    }
+    if (['all', 'category', 'menu'].indexOf(b.targetType || 'all') < 0) return 'Cakupan promo tidak valid';
+    if ((b.targetType === 'category' || b.targetType === 'menu') && !b.targetValue) return 'Target kategori/menu wajib dipilih';
+    if (b.voucherCode && !/^[A-Z0-9-]{3,20}$/i.test(String(b.voucherCode).trim())) return 'Kode voucher: 3-20 karakter (huruf/angka/-)';
+    if (b.startDate && b.endDate && b.startDate > b.endDate) return 'Tanggal mulai harus <= tanggal selesai';
+    if ((b.startTime && !b.endTime) || (!b.startTime && b.endTime)) return 'Jam mulai & jam selesai harus diisi berpasangan';
+    if (b.startTime && b.endTime && b.startTime >= b.endTime) return 'Jam mulai harus < jam selesai';
+    return null;
+  }
+
+  // GET /api/owner/promos — daftar semua promo
+  routes['GET /api/owner/promos'] = function () {
+    return sel('promos', 'select=*&order=created_at.desc').then(function (rows) {
+      return ok({ success: true, promos: (rows || []).map(promoToApi) });
+    }).catch(serverError);
+  };
+
+  // POST /api/owner/promos — buat promo baru
+  routes['POST /api/owner/promos'] = function (body) {
+    var err = validatePromoInput(body || {});
+    if (err) return Promise.resolve(bad({ success: false, message: err }));
+    var b = body;
+    var row = {
+      id: uid('promo'),
+      name: String(b.name).trim(),
+      type: b.type,
+      value: Number(b.value) || 0,
+      max_discount: (b.maxDiscount === '' || b.maxDiscount === null || b.maxDiscount === undefined) ? null : Number(b.maxDiscount),
+      buy_x: b.type === 'buy_x_get_y' ? Number(b.buyX) : null,
+      buy_y: b.type === 'buy_x_get_y' ? Number(b.buyY) : null,
+      target_type: b.targetType || 'all',
+      target_value: (b.targetType === 'all') ? null : (b.targetValue || null),
+      min_purchase: Number(b.minPurchase) || 0,
+      voucher_code: b.voucherCode ? String(b.voucherCode).trim().toUpperCase() : null,
+      start_date: b.startDate || null,
+      end_date: b.endDate || null,
+      days_of_week: (b.daysOfWeek && b.daysOfWeek.length) ? b.daysOfWeek.map(Number) : null,
+      start_time: b.startTime || null,
+      end_time: b.endTime || null,
+      max_uses: (b.maxUses === '' || b.maxUses === null || b.maxUses === undefined) ? null : Number(b.maxUses),
+      active: b.active !== false
+    };
+    return ins('promos', [row]).then(function () {
+      return created({ success: true, promo: promoToApi(row) });
+    }).catch(serverError);
+  };
+
+  // PUT /api/owner/promos — ubah promo (body.id)
+  routes['PUT /api/owner/promos'] = function (body) {
+    if (!body || !body.id) return Promise.resolve(bad({ success: false, message: 'ID promo wajib diisi' }));
+    var patch = {};
+    var map = {
+      name: 'name', type: 'type', value: 'value', maxDiscount: 'max_discount',
+      buyX: 'buy_x', buyY: 'buy_y', targetType: 'target_type', targetValue: 'target_value',
+      minPurchase: 'min_purchase', voucherCode: 'voucher_code',
+      startDate: 'start_date', endDate: 'end_date', daysOfWeek: 'days_of_week',
+      startTime: 'start_time', endTime: 'end_time', maxUses: 'max_uses', active: 'active'
+    };
+    Object.keys(map).forEach(function (k) {
+      if (body[k] !== undefined) patch[map[k]] = body[k];
+    });
+    if (patch.voucher_code !== undefined) {
+      patch.voucher_code = patch.voucher_code ? String(patch.voucher_code).trim().toUpperCase() : null;
+    }
+    if (patch.days_of_week !== undefined && patch.days_of_week) {
+      patch.days_of_week = patch.days_of_week.map(Number);
+    }
+    return sel('promos', 'select=*&id=eq.' + encodeURIComponent(body.id) + '&limit=1').then(function (rows) {
+      if (!rows || !rows.length) return notFound({ success: false, message: 'Promo tidak ditemukan' });
+      var merged = Object.assign(promoToApi(rows[0]), body);
+      var err = validatePromoInput(merged);
+      if (err) return bad({ success: false, message: err });
+      return upd('promos', 'id=eq.' + encodeURIComponent(body.id), patch).then(function () {
+        return ok({ success: true, message: 'Promo diperbarui' });
+      });
+    }).catch(serverError);
+  };
+
+  // DELETE /api/owner/promos — hapus promo (usage ikut terhapus via cascade)
+  routes['DELETE /api/owner/promos'] = function (body) {
+    if (!body || !body.id) return Promise.resolve(bad({ success: false, message: 'ID promo wajib diisi' }));
+    return del('promos', 'id=eq.' + encodeURIComponent(body.id)).then(function (rows) {
+      if (rows && rows.length) return ok({ success: true, message: 'Promo dihapus' });
+      return notFound({ success: false, message: 'Promo tidak ditemukan' });
+    }).catch(serverError);
+  };
+
+  // GET /api/promos/eligible — promo OTOMATIS yg berlaku saat ini (utk picker kasir)
+  routes['GET /api/promos/eligible'] = function () {
+    return sel('promos', 'select=*&active=eq.true&order=created_at.asc').then(function (rows) {
+      var list = (rows || []).map(promoToApi).filter(function (p) {
+        return !p.voucherCode && promoTimeValid(p);
+      });
+      return ok({ success: true, promos: list });
+    }).catch(function (e) {
+      if (/promos/i.test(String((e && e.message) || ''))) return ok({ success: true, promos: [] });
+      return serverError(e);
+    });
+  };
+
+  // POST /api/promos/validate — cek promo/voucher + preview diskon {promo_id|code, subtotal, items}
+  routes['POST /api/promos/validate'] = function (body) {
+    var promoId = (body && (body.promo_id || body.promoId)) || null;
+    var code = String((body && (body.code || body.voucher_code)) || '').trim();
+    if (!promoId && !code) return Promise.resolve(bad({ success: false, message: 'Promo / kode voucher wajib diisi' }));
+    var subtotal = Number(body.subtotal) || 0;
+    var q = promoId
+      ? sel('promos', 'select=*&id=eq.' + encodeURIComponent(promoId) + '&limit=1')
+      : sel('promos', 'select=*&voucher_code=ilike.' + encodeURIComponent(code) + '&limit=1');
+    return q
+      .then(function (rows) {
+        if (!rows || !rows.length) return bad({ success: false, message: promoId ? 'Promo tidak ditemukan' : 'Kode voucher tidak ditemukan' });
+        var promo = promoToApi(rows[0]);
+        var v = validatePromo(promo, subtotal, code);
+        if (!v.valid) return bad({ success: false, message: v.reason });
+        var items = body.items || [];
+        var ids = items.map(function (i) { return i.id; });
+        return menuCategoryMap(ids).then(function (catMap) {
+          var mapped = items.map(function (i) {
+            return { id: i.id, price: i.price, qty: i.qty, category: catMap[i.id] || '' };
+          });
+          var discount = computePromoDiscount(promo, mapped);
+          if (discount <= 0) return bad({ success: false, message: 'Promo tidak memberikan diskon untuk item ini' });
+          return ok({ success: true, promo: { id: promo.id, name: promo.name, type: promo.type }, discount: discount });
+        });
+      }).catch(function (e) {
+        if (/promos/i.test(String((e && e.message) || ''))) {
+          return bad({ success: false, message: 'Fitur promo belum aktif (skema belum dipasang)' });
+        }
+        return serverError(e);
+      });
+  };
+
+  /* ==================================================================
+     LOYALITAS PELANGGAN (skema bagian 14)
+     Poin member: dapat poin tiap belanja, tukar poin jadi diskon.
+     Rasio di settings: loyalty_points_per_rp (default 10000),
+     loyalty_rp_per_point (default 100).
+     ================================================================== */
+  var _hasLoyaltyCols = null;
+  function ordersHasLoyaltyCols() {
+    if (_hasLoyaltyCols !== null) return Promise.resolve(_hasLoyaltyCols);
+    return sel('orders', 'select=customer_id&limit=1').then(function () {
+      _hasLoyaltyCols = true;
+      return true;
+    }).catch(function (e) {
+      _hasLoyaltyCols = !/customer_id/i.test(String((e && e.message) || ''));
+      return _hasLoyaltyCols;
+    });
+  }
+
+  function customerToApi(r) {
+    return {
+      id: r.id, name: r.name, phone: r.phone || '',
+      points: Number(r.points) || 0,
+      totalSpent: Number(r.total_spent) || 0,
+      totalVisits: Number(r.total_visits) || 0,
+      createdAt: r.created_at
+    };
+  }
+
+  function getLoyaltySettings() {
+    return sel('settings', 'select=key,value&key=in.(loyalty_points_per_rp,loyalty_rp_per_point)').then(function (rows) {
+      var s = { pointsPerRp: 10000, rpPerPoint: 100 };
+      (rows || []).forEach(function (r) {
+        if (r.key === 'loyalty_points_per_rp') s.pointsPerRp = Math.max(1, Number(r.value) || 10000);
+        if (r.key === 'loyalty_rp_per_point') s.rpPerPoint = Math.max(1, Number(r.value) || 100);
+      });
+      return s;
+    }).catch(function () { return { pointsPerRp: 10000, rpPerPoint: 100 }; });
+  }
+
+  function customersTableMissing(e) {
+    return /customers/i.test(String((e && e.message) || ''));
+  }
+
+  // Resolve redeem poin utk checkout -> {customer, redeemPoints, redeemDiscount, settings} | {error} | {none:true}
+  function resolveLoyaltyRedeem(body, subtotalAfterPromo) {
+    var customerId = body.customer_id || body.customerId || null;
+    var wantPoints = Math.max(0, Math.floor(Number(body.redeem_points || body.redeemPoints) || 0));
+    if (!customerId) return Promise.resolve({ none: true });
+    return sel('customers', 'select=*&id=eq.' + encodeURIComponent(customerId) + '&limit=1')
+      .then(function (rows) {
+        if (!rows || !rows.length) {
+          if (body.promo_best_effort) return { none: true, skipped: true, warning: 'Pelanggan tidak ditemukan, loyalitas dilewati' };
+          return { error: 'Pelanggan tidak ditemukan' };
+        }
+        var customer = customerToApi(rows[0]);
+        return getLoyaltySettings().then(function (s) {
+          if (wantPoints <= 0) return { customer: customer, redeemPoints: 0, redeemDiscount: 0, settings: s };
+          if (wantPoints > customer.points) {
+            if (body.promo_best_effort) return { customer: customer, redeemPoints: 0, redeemDiscount: 0, settings: s, warning: 'Poin tidak cukup, penukaran dilewati' };
+            return { error: 'Poin pelanggan tidak cukup (sisa ' + customer.points + ')' };
+          }
+          var maxBySubtotal = Math.max(0, subtotalAfterPromo);
+          var disc = wantPoints * s.rpPerPoint;
+          var capped = Math.min(disc, maxBySubtotal);
+          var actualPoints = Math.floor(capped / s.rpPerPoint);
+          return { customer: customer, redeemPoints: actualPoints, redeemDiscount: actualPoints * s.rpPerPoint, settings: s };
+        });
+      }).catch(function (e) {
+        if (isOfflineError(e)) throw e;
+        if (customersTableMissing(e)) return { none: true, skipped: true };
+        throw e;
+      });
+  }
+
+  // Terapkan earn + redeem setelah order tercipta (non-fatal).
+  function applyLoyaltyPostCheckout(customerId, orderId, orderTotal, redeemInfo) {
+    if (!customerId) return Promise.resolve();
+    return sel('customers', 'select=*&id=eq.' + encodeURIComponent(customerId) + '&limit=1')
+      .then(function (rows) {
+        if (!rows || !rows.length) return null;
+        var c = rows[0];
+        var s = (redeemInfo && redeemInfo.settings) || { pointsPerRp: 10000, rpPerPoint: 100 };
+        var earned = Math.floor((Number(orderTotal) || 0) / s.pointsPerRp);
+        var redeemed = (redeemInfo && redeemInfo.redeemPoints) || 0;
+        var newBal = Math.max(0, (Number(c.points) || 0) - redeemed + earned);
+        var txs = [];
+        if (redeemed > 0) txs.push({
+          id: uid('pt'), customer_id: customerId, order_id: orderId, type: 'redeem',
+          points: -redeemed, balance_after: (Number(c.points) || 0) - redeemed,
+          note: 'Tukar poin jadi diskon'
+        });
+        if (earned > 0) txs.push({
+          id: uid('pt'), customer_id: customerId, order_id: orderId, type: 'earn',
+          points: earned, balance_after: newBal,
+          note: 'Poin belanja ' + formatRp(orderTotal)
+        });
+        var chain = txs.length ? ins('point_transactions', txs) : Promise.resolve();
+        return chain.then(function () {
+          return upd('customers', 'id=eq.' + encodeURIComponent(customerId), {
+            points: newBal,
+            total_spent: (Number(c.total_spent) || 0) + (Number(orderTotal) || 0),
+            total_visits: (Number(c.total_visits) || 0) + 1
+          });
+        }).then(function () { return { earned: earned, redeemed: redeemed }; });
+      }).catch(function () { return null; });
+  }
+
+  // GET /api/owner/customers — daftar (?q= cari nama/telepon, ?id= detail + riwayat)
+  routes['GET /api/owner/customers'] = function (body, query) {
+    var q = (query && query.q) || '';
+    var id = (query && query.id) || '';
+    if (id) {
+      return sel('customers', 'select=*&id=eq.' + encodeURIComponent(id) + '&limit=1').then(function (rows) {
+        if (!rows || !rows.length) return notFound({ success: false, message: 'Pelanggan tidak ditemukan' });
+        return sel('point_transactions', 'select=*&customer_id=eq.' + encodeURIComponent(id) + '&order=created_at.desc&limit=50')
+          .then(function (txs) {
+            return ok({ success: true, customer: customerToApi(rows[0]), history: txs || [] });
+          });
+      }).catch(serverError);
+    }
+    var filter = q
+      ? '&or=(name.ilike.*' + encodeURIComponent(q) + '*,phone.ilike.*' + encodeURIComponent(q) + '*)'
+      : '';
+    return sel('customers', 'select=*'+ filter + '&order=total_spent.desc&limit=100').then(function (rows) {
+      return ok({ success: true, customers: (rows || []).map(customerToApi) });
+    }).catch(serverError);
+  };
+
+  // GET /api/customers/search — cari cepat utk kasir (?q=)
+  routes['GET /api/customers/search'] = function (body, query) {
+    var q = String((query && query.q) || '').trim();
+    if (q.length < 2) return Promise.resolve(ok({ success: true, customers: [] }));
+    var filter = '&or=(name.ilike.*' + encodeURIComponent(q) + '*,phone.ilike.*' + encodeURIComponent(q) + '*)';
+    return sel('customers', 'select=id,name,phone,points' + filter + '&order=total_spent.desc&limit=10')
+      .then(function (rows) { return ok({ success: true, customers: (rows || []).map(customerToApi) }); })
+      .catch(function (e) {
+        if (customersTableMissing(e)) return ok({ success: true, customers: [] });
+        return serverError(e);
+      });
+  };
+
+  // POST /api/owner/customers — tambah pelanggan {name, phone}
+  routes['POST /api/owner/customers'] = function (body) {
+    var name = String((body && body.name) || '').trim();
+    var phone = String((body && body.phone) || '').trim();
+    if (!name) return Promise.resolve(bad({ success: false, message: 'Nama pelanggan wajib diisi' }));
+    if (phone && !/^[0-9+]{9,16}$/.test(phone)) return Promise.resolve(bad({ success: false, message: 'No. HP tidak valid' }));
+    var row = { id: uid('cust'), name: name, phone: phone || null };
+    return ins('customers', [row]).then(function () {
+      return created({ success: true, customer: customerToApi(Object.assign({ points: 0, total_spent: 0, total_visits: 0 }, row)) });
+    }).catch(function (e) {
+      if (/duplicate|23505|unique/i.test(String((e && e.message) || ''))) {
+        return bad({ success: false, message: 'No. HP sudah terdaftar' });
+      }
+      return serverError(e);
+    });
+  };
+
+  // PUT /api/owner/customers — ubah {id, name?, phone?}
+  routes['PUT /api/owner/customers'] = function (body) {
+    if (!body || !body.id) return Promise.resolve(bad({ success: false, message: 'ID pelanggan wajib diisi' }));
+    var patch = {};
+    if (body.name !== undefined) {
+      if (!String(body.name).trim()) return Promise.resolve(bad({ success: false, message: 'Nama tidak boleh kosong' }));
+      patch.name = String(body.name).trim();
+    }
+    if (body.phone !== undefined) {
+      var ph = String(body.phone).trim();
+      if (ph && !/^[0-9+]{9,16}$/.test(ph)) return Promise.resolve(bad({ success: false, message: 'No. HP tidak valid' }));
+      patch.phone = ph || null;
+    }
+    return upd('customers', 'id=eq.' + encodeURIComponent(body.id), patch).then(function (rows) {
+      if (rows && rows.length) return ok({ success: true, customer: customerToApi(rows[0]) });
+      return notFound({ success: false, message: 'Pelanggan tidak ditemukan' });
+    }).catch(function (e) {
+      if (/duplicate|23505|unique/i.test(String((e && e.message) || ''))) {
+        return bad({ success: false, message: 'No. HP sudah terdaftar' });
+      }
+      return serverError(e);
+    });
+  };
+
+  // DELETE /api/owner/customers — hapus {id}
+  routes['DELETE /api/owner/customers'] = function (body) {
+    if (!body || !body.id) return Promise.resolve(bad({ success: false, message: 'ID pelanggan wajib diisi' }));
+    return del('customers', 'id=eq.' + encodeURIComponent(body.id)).then(function (rows) {
+      if (rows && rows.length) return ok({ success: true, message: 'Pelanggan dihapus' });
+      return notFound({ success: false, message: 'Pelanggan tidak ditemukan' });
+    }).catch(serverError);
+  };
+
+  // POST /api/owner/customers/adjust — koreksi poin manual {id, points(+/-), note}
+  routes['POST /api/owner/customers/adjust'] = function (body) {
+    if (!body || !body.id) return Promise.resolve(bad({ success: false, message: 'ID pelanggan wajib diisi' }));
+    var delta = Math.trunc(Number(body.points) || 0);
+    if (!delta) return Promise.resolve(bad({ success: false, message: 'Jumlah poin tidak valid' }));
+    return sel('customers', 'select=*&id=eq.' + encodeURIComponent(body.id) + '&limit=1').then(function (rows) {
+      if (!rows || !rows.length) return notFound({ success: false, message: 'Pelanggan tidak ditemukan' });
+      var nb = Math.max(0, (Number(rows[0].points) || 0) + delta);
+      return ins('point_transactions', [{
+        id: uid('pt'), customer_id: body.id, order_id: null, type: 'adjust',
+        points: delta, balance_after: nb, note: String(body.note || 'Koreksi manual')
+      }]).then(function () {
+        return upd('customers', 'id=eq.' + encodeURIComponent(body.id), { points: nb });
+      }).then(function () {
+        return ok({ success: true, points: nb });
+      });
+    }).catch(serverError);
   };
 
   // 9. GET /api/pos/summary
@@ -1296,6 +1875,7 @@
           var b = {};
           try { b = JSON.parse(JSON.stringify(entry.body || {})); } catch (e) { b = entry.body || {}; }
           b.client_ref = entry.client_ref;
+          b.promo_best_effort = true; // promo kedaluwarsa saat antre -> lewati promo, order tetap masuk
           return routes['POST /api/pos/checkout'](b).then(function (res) {
             // Route mengembalikan Response; baca status + bodi JSON-nya.
             var parsed = (res && typeof res.json === 'function')
